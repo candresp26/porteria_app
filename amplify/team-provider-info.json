@@ -1,0 +1,23 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-porteriaaapp-dev-fb3ce-authRole",
+      "UnauthRoleArn": "arn:aws:iam::699305361178:role/amplify-porteriaaapp-dev-fb3ce-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::699305361178:role/amplify-porteriaaapp-dev-fb3ce-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-porteriaaapp-dev-fb3ce-deployment",
+      "UnauthRoleName": "amplify-porteriaaapp-dev-fb3ce-unauthRole",
+      "StackName": "amplify-porteriaaapp-dev-fb3ce",
+      "StackId": "arn:aws:cloudformation:us-east-1:699305361178:stack/amplify-porteriaaapp-dev-fb3ce/e5a46260-cf0f-11f0-a253-125dabe8e3e7",
+      "AmplifyAppId": "d2e4aybzgpevwo"
+    },
+    "categories": {
+      "auth": {
+        "porteriaaappc66d159b": {}
+      },
+      "api": {
+        "porteriaaapp": {}
+      }
+    }
+  }
+}

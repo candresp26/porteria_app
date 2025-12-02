@@ -1,0 +1,50 @@
+enum Role {
+  RESIDENT
+  GUARD
+  ADMIN
+  SUPER_ADMIN
+}
+
+type User @model @auth(rules: [
+  { allow: owner },
+  { allow: groups, groups: ["ADMIN", "GUARD"], operations: [read] }
+]) {
+  id: ID!
+  name: String
+  phone: String!
+  role: Role!
+  apartmentID: ID @index(name: "byApartment")
+  apartment: Apartment @belongsTo(fields: ["apartmentID"])
+  # ESTA ERA LA LÍNEA QUE FALTABA:
+  packages: [Package] @hasMany(indexName: "byRecipient", fields: ["id"])
+}
+
+type Apartment @model @auth(rules: [
+  { allow: groups, groups: ["ADMIN", "SUPER_ADMIN"] },
+  { allow: private, operations: [read] }
+]) {
+  id: ID!
+  tower: String!
+  unitNumber: String!
+  accessCode: String! 
+  residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
+}
+
+type Package @model @auth(rules: [
+  { allow: groups, groups: ["GUARD", "ADMIN"] },
+  { allow: owner, operations: [read] }
+]) {
+  id: ID!
+  courier: String!
+  photoKey: String
+  receivedAt: AWSDateTime!
+  deliveredAt: AWSDateTime
+  recipientID: ID! @index(name: "byRecipient")
+  recipient: User @belongsTo(fields: ["recipientID"])
+  status: PackageStatus!
+}
+
+enum PackageStatus {
+  IN_WAREHOUSE
+  DELIVERED
+}

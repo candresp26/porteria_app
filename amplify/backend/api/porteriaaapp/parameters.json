@@ -1,0 +1,11 @@
+{
+  "AppSyncApiName": "porteriaaapp",
+  "DynamoDBBillingMode": "PAY_PER_REQUEST",
+  "DynamoDBEnableServerSideEncryption": false,
+  "AuthCognitoUserPoolId": {
+    "Fn::GetAtt": [
+      "authporteriaaappc66d159b",
+      "Outputs.UserPoolId"
+    ]
+  }
+}
