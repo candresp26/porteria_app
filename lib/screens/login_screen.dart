@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+// 1. Imports de AWS y Modelos
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_api/amplify_api.dart';
+import '../models/ModelProvider.dart'; // Asegúrate de que esta ruta a tus modelos sea correcta
+
+// 2. Imports para Navegación y Persistencia
+import 'package:shared_preferences/shared_preferences.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -8,40 +16,109 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // 1. Clave global para identificar el formulario y validarlo
+  // Clave global para validar el formulario
   final _formKey = GlobalKey<FormState>();
   
+  // Controladores de texto
   final _phoneController = TextEditingController();
   final _codeController = TextEditingController();
+  
   bool _isLoading = false;
 
-  void _handleLogin() {
-    // 2. Antes de hacer nada, preguntamos: ¿El formulario es válido?
-    if (_formKey.currentState!.validate()) {
-      // Si todo está bien, procedemos
-      setState(() {
-        _isLoading = true;
-      });
+  Future<void> _handleLogin() async {
+    // 1. Validar visualmente (campos rojos si están vacíos)
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-      print("📞 Celular: ${_phoneController.text}");
-      print("🔑 Código: ${_codeController.text}");
+    setState(() => _isLoading = true);
 
-      Future.delayed(const Duration(seconds: 2), () {
+    final codigoIngresado = _codeController.text.trim();
+    final celularIngresado = _phoneController.text.trim();
+
+    try {
+      // 2. PREGUNTAR A AWS: ¿Existe este apartamento?
+      // IMPORTANTE: Usamos 'authorizationMode: APIAuthorizationType.apiKey' 
+      // para permitir la búsqueda sin estar logueado aún.
+      final request = ModelQueries.list(
+        Apartment.classType,
+        where: Apartment.ACCESSCODE.eq(codigoIngresado),
+        authorizationMode: APIAuthorizationType.apiKey, 
+      );
+
+      final response = await Amplify.API.query(request: request).response;
+      
+      // Logs para depuración (puedes borrarlos luego)
+      print("📦 DATOS CRUDOS: ${response.data?.items.firstOrNull.toString()}");
+      if (response.errors.isNotEmpty) {
+        print("🚨 ERRORES GRAPHQL: ${response.errors}");
+      }
+
+      final data = response.data;
+
+      if (data == null || response.errors.isNotEmpty) {
+        throw Exception("Error leyendo datos de AWS: ${response.errors.firstOrNull?.message}");
+      }
+
+      // 3. VERIFICAR RESULTADOS
+      if (data.items.isEmpty) {
+        // El código NO existe en la base de datos
         if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
+           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✅ Datos válidos. Conectando con AWS...'),
-              backgroundColor: Colors.green,
+              content: Text('⛔ Código incorrecto. Verifica e intenta de nuevo.'),
+              backgroundColor: Colors.red,
             ),
           );
         }
-      });
-    } else {
-      // Si hay errores, no hacemos nada (el formulario se pondrá rojo solo)
-      print("❌ Intento de login con campos vacíos");
+      } else {
+        // ¡EUREKA! El código existe
+        final apartamentoEncontrado = data.items.first;
+        
+        // 4. GUARDAR SESIÓN Y NAVEGAR
+        if (apartamentoEncontrado != null) {
+          final prefs = await SharedPreferences.getInstance();
+          
+          // Guardamos datos en el celular
+          await prefs.setString('tower', apartamentoEncontrado.tower);
+          await prefs.setString('unit', apartamentoEncontrado.unitNumber);
+          await prefs.setString('userPhone', celularIngresado); // Guardamos el celular también
+          await prefs.setBool('isLoggedIn', true);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ ¡Bienvenido! Apto: ${apartamentoEncontrado.unitNumber}'),
+                backgroundColor: Colors.green,
+              ),
+            );
+
+            // Redirigir al Home (y borrar el Login del historial para no volver atrás)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomeScreen(
+                  tower: apartamentoEncontrado.tower,
+                  unit: apartamentoEncontrado.unitNumber,
+                ),
+              ),
+            );
+          }
+        }
+      }
+
+    } on Exception catch (e) {
+      safePrint('Error técnico: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de conexión: $e')),
+        );
+      }
+    } finally {
+      // Siempre apagar el círculo de carga
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -57,6 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.security, size: 80, color: Colors.indigo),
               const SizedBox(height: 20),
+              
               const Text(
                 'Bienvenido',
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.indigo),
@@ -72,12 +150,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  // 3. Envolvemos los campos en un widget Form
                   child: Form(
-                    key: _formKey, // Asignamos la llave maestra
+                    key: _formKey, // Asignamos la llave del formulario
                     child: Column(
                       children: [
-                        // Input: Celular (Ahora es TextFormField)
+                        // Input: Celular
                         TextFormField(
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
@@ -86,12 +163,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: Icon(Icons.phone_android),
                             border: OutlineInputBorder(),
                           ),
-                          // AQUI ESTA LA REGLA DE VALIDACION:
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor ingresa tu celular';
                             }
-                            return null; // Null significa "todo está bien"
+                            return null;
                           },
                         ),
                         const SizedBox(height: 20),
@@ -99,14 +175,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Input: Código de Apto
                         TextFormField(
                           controller: _codeController,
-                          obscureText: true,
+                          obscureText: true, // Ocultar texto
                           decoration: const InputDecoration(
                             labelText: 'Código de Apartamento',
                             prefixIcon: Icon(Icons.vpn_key),
                             border: OutlineInputBorder(),
-                            helperText: 'Ej: T1-502-XYZ',
+                            helperText: 'Ej: DEMO-123',
                           ),
-                          // AQUI ESTA LA REGLA DE VALIDACION:
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'El código es obligatorio';
@@ -116,6 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 30),
 
+                        // Botón de Ingreso
                         SizedBox(
                           width: double.infinity,
                           height: 50,

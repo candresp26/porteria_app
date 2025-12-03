@@ -21,7 +21,8 @@ type User @model @auth(rules: [
 
 type Apartment @model @auth(rules: [
   { allow: groups, groups: ["ADMIN", "SUPER_ADMIN"] },
-  { allow: private, operations: [read] }
+  { allow: private, operations: [read] },
+  { allow: public, operations: [read] } 
 ]) {
   id: ID!
   tower: String!
