@@ -7,15 +7,19 @@ enum Role {
 
 type User @model @auth(rules: [
   { allow: owner },
-  { allow: groups, groups: ["ADMIN", "GUARD"], operations: [read] }
+  { allow: groups, groups: ["ADMIN", "GUARD"], operations: [read] },
+  { allow: public, operations: [create, read, update] } 
 ]) {
   id: ID!
-  name: String
-  phone: String!
+  username: String! @index(name: "byUsername", queryField: "userByUsername") 
+  password: String! 
+  isFirstLogin: Boolean! 
   role: Role!
+  name: String
+  
+  # Relaciones
   apartmentID: ID @index(name: "byApartment")
   apartment: Apartment @belongsTo(fields: ["apartmentID"])
-  # ESTA ERA LA LÍNEA QUE FALTABA:
   packages: [Package] @hasMany(indexName: "byRecipient", fields: ["id"])
 }
 
@@ -33,8 +37,8 @@ type Apartment @model @auth(rules: [
 
 type Package @model @auth(rules: [
   { allow: groups, groups: ["GUARD", "ADMIN"] },
-  { allow: owner, operations: [read] }
-]) {
+  { allow: owner, operations: [read] },
+  { allow: public, operations: [create, read, update] } ]) {
   id: ID!
   courier: String!
   photoKey: String
