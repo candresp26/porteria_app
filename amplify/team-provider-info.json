@@ -17,6 +17,9 @@
       },
       "api": {
         "porteriaaapp": {}
+      },
+      "storage": {
+        "s3porteria": {}
       }
     }
   }

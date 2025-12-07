@@ -5,15 +5,14 @@ enum Role {
   SUPER_ADMIN
 }
 
+# Habilitamos acceso PÚBLICO total para poder crear usuarios desde el Login
 type User @model @auth(rules: [
-  { allow: owner },
-  { allow: groups, groups: ["ADMIN", "GUARD"], operations: [read] },
-  { allow: public, operations: [create, read, update] } 
+  { allow: public }
 ]) {
   id: ID!
-  username: String! @index(name: "byUsername", queryField: "userByUsername") 
-  password: String! 
-  isFirstLogin: Boolean! 
+  username: String! @index(name: "byUsername", queryField: "userByUsername")
+  password: String!
+  isFirstLogin: Boolean!
   role: Role!
   name: String
   
@@ -23,22 +22,21 @@ type User @model @auth(rules: [
   packages: [Package] @hasMany(indexName: "byRecipient", fields: ["id"])
 }
 
+# Habilitamos acceso PÚBLICO para que el seeder pueda crear apartamentos
 type Apartment @model @auth(rules: [
-  { allow: groups, groups: ["ADMIN", "SUPER_ADMIN"] },
-  { allow: private, operations: [read] },
-  { allow: public, operations: [read] } 
+  { allow: public }
 ]) {
   id: ID!
   tower: String!
   unitNumber: String!
-  accessCode: String! 
+  accessCode: String!
   residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
 }
 
+# Habilitamos acceso PÚBLICO para que el portero cree y actualice paquetes
 type Package @model @auth(rules: [
-  { allow: groups, groups: ["GUARD", "ADMIN"] },
-  { allow: owner, operations: [read] },
-  { allow: public, operations: [create, read, update] } ]) {
+  { allow: public }
+]) {
   id: ID!
   courier: String!
   photoKey: String

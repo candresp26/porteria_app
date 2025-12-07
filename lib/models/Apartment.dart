@@ -217,24 +217,11 @@ class Apartment extends amplify_core.Model {
     
     modelSchemaDefinition.authRules = [
       amplify_core.AuthRule(
-        authStrategy: amplify_core.AuthStrategy.GROUPS,
-        groupClaim: "cognito:groups",
-        groups: [ "ADMIN", "SUPER_ADMIN" ],
-        provider: amplify_core.AuthRuleProvider.USERPOOLS,
+        authStrategy: amplify_core.AuthStrategy.PUBLIC,
         operations: const [
           amplify_core.ModelOperation.CREATE,
           amplify_core.ModelOperation.UPDATE,
           amplify_core.ModelOperation.DELETE,
-          amplify_core.ModelOperation.READ
-        ]),
-      amplify_core.AuthRule(
-        authStrategy: amplify_core.AuthStrategy.PRIVATE,
-        operations: const [
-          amplify_core.ModelOperation.READ
-        ]),
-      amplify_core.AuthRule(
-        authStrategy: amplify_core.AuthStrategy.PUBLIC,
-        operations: const [
           amplify_core.ModelOperation.READ
         ])
     ];

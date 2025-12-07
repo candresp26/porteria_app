@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-// 1. Importamos las librerías de AWS
 import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_api/amplify_api.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
 
-// 2. Importamos la configuración y los modelos generados
-import 'amplifyconfiguration.dart';
-import 'models/ModelProvider.dart';
-import 'screens/login_screen.dart'; 
+import 'amplifyconfiguration.dart'; // El archivo que genera Amplify CLI
+import 'models/ModelProvider.dart'; // Tus modelos
+
+// Importamos las pantallas
+import 'screens/login_screen.dart';
+import 'screens/guard_home_screen.dart'; // 👈 La nueva pantalla principal
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +24,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _amplifyConfigured = false;
-  String _statusMessage = 'Iniciando conexión con AWS...';
+  bool _isUserLoggedIn = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -30,38 +33,57 @@ class _MyAppState extends State<MyApp> {
     _configureAmplify();
   }
 
+  // 1. Configuración de Amplify y Verificación de Sesión
   Future<void> _configureAmplify() async {
     try {
-      // A. Agregamos los plugins (Auth y API)
-      final auth = AmplifyAuthCognito();
-      final api = AmplifyAPI(options: APIPluginOptions(modelProvider: ModelProvider.instance));
-      await Amplify.addPlugins([auth, api]);
-
-      // B. Leemos la configuración de AWS
-      await Amplify.configure(amplifyconfig);
+      // Evitar configurar dos veces (Hot Reload)
+      if (!Amplify.isConfigured) {
+        final api = AmplifyAPI(options: APIPluginOptions(modelProvider: ModelProvider.instance));
+        final auth = AmplifyAuthCognito();
+        final storage = AmplifyStorageS3();
+        
+        await Amplify.addPlugins([api, auth, storage]);
+        await Amplify.configure(amplifyconfig);
+      }
+      
+      // 2. Comprobar si ya hay un usuario logueado
+      try {
+        final result = await Amplify.Auth.fetchAuthSession();
+        if (result.isSignedIn) {
+          setState(() {
+            _isUserLoggedIn = true;
+          });
+        }
+      } catch (e) {
+        print("No hay sesión activa: $e");
+      }
 
       setState(() {
         _amplifyConfigured = true;
-        _statusMessage = '✅ ¡Conectado a AWS exitosamente!';
+        _isLoading = false;
       });
-      safePrint('Amplify configurado correctamente');
-    } on Exception catch (e) {
-      setState(() {
-        _statusMessage = '❌ Error de conexión: $e';
-      });
-      safePrint('Error configurando Amplify: $e');
+      
+    } catch (e) {
+      print('Error configurando Amplify: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, 
-      home: _amplifyConfigured
-          ? const LoginScreen() 
-          : const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
+      debugShowCheckedModeBanner: false,
+      title: 'Portería App',
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+        useMaterial3: true,
+      ),
+      // Lógica de navegación inicial
+      home: _isLoading 
+        ? const Scaffold(body: Center(child: CircularProgressIndicator())) // Cargando...
+        : _isUserLoggedIn 
+            ? const GuardHomeScreen() // 👈 Si ya entró, va al menú nuevo
+            : const LoginScreen(),    // 👈 Si no, al Login
     );
   }
 }
