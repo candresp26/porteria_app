@@ -33,10 +33,7 @@ type Apartment @model @auth(rules: [
   residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
 }
 
-# Habilitamos acceso PÚBLICO para que el portero cree y actualice paquetes
-type Package @model @auth(rules: [
-  { allow: public }
-]) {
+type Package @model @auth(rules: [{ allow: public }]) {
   id: ID!
   courier: String!
   photoKey: String
@@ -45,6 +42,16 @@ type Package @model @auth(rules: [
   recipientID: ID! @index(name: "byRecipient")
   recipient: User @belongsTo(fields: ["recipientID"])
   status: PackageStatus!
+  
+  # 👇 NUEVOS CAMPOS PARA LA ENTREGA
+  signatureKey: String
+  deliveryMethod: DeliveryMethod # Enum nuevo
+}
+
+enum DeliveryMethod {
+  QR_WITH_SIGNATURE
+  MANUAL_WITH_SIGNATURE
+  MANUAL_NO_SIGNATURE
 }
 
 enum PackageStatus {

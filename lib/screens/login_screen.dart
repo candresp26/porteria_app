@@ -25,6 +25,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passController = TextEditingController();
   bool _isLoading = false;
 
+  bool _obscurePassword = true;
+
   Future<void> _smartLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -177,10 +179,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                TextFormField(
+TextFormField(
                   controller: _passController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Contraseña o Código', border: OutlineInputBorder(), prefixIcon: Icon(Icons.key)),
+                  obscureText: _obscurePassword, // 👈 Usamos la variable
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña o Código', 
+                    border: const OutlineInputBorder(), 
+                    prefixIcon: const Icon(Icons.key),
+                    // 👇 BOTÓN DEL OJO
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword; // Alternar
+                        });
+                      },
+                    ),
+                  ),
                   validator: (v) => v!.isEmpty ? 'Requerido' : null,
                 ),
                 const SizedBox(height: 30),

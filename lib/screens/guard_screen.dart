@@ -177,7 +177,7 @@ class _GuardScreenState extends State<GuardScreen> {
                         padding: const EdgeInsets.all(10),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
-                          childAspectRatio: 0.60, // Mantenemos la proporción corregida
+                          childAspectRatio: 0.55, // 👈 PRUEBA CON ESTE VALOR
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
                         ),

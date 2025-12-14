@@ -2,171 +2,108 @@ import 'package:flutter/material.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_api/amplify_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// Importamos nuestros modelos y pantallas
 import '../models/ModelProvider.dart';
 import 'login_screen.dart';
-import 'receive_package_screen.dart';
-import 'guard_screen.dart'; // La pantalla de Inventario (Grilla)
-import 'qr_scan_screen.dart'; // La pantalla del Escáner
+import 'guard_screen.dart'; // Pantalla de Inventario
+import 'receive_package_screen.dart'; // 🔥 IMPORTANTE: Pantalla de Registro
+import 'qr_scan_screen.dart'; // Pantalla de Escáner
+import 'delivery_history_screen.dart'; // Pantalla de Historial
 
-class GuardHomeScreen extends StatelessWidget {
+class GuardHomeScreen extends StatefulWidget {
   const GuardHomeScreen({super.key});
 
-  // --- 1. LÓGICA DE CIERRE DE SESIÓN ---
-  Future<void> _signOut(BuildContext context) async {
-    try {
-      await Amplify.Auth.signOut();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear(); // Borra datos locales
-      
-      if (context.mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error al salir: $e"), backgroundColor: Colors.red),
-        );
-      }
+  @override
+  State<GuardHomeScreen> createState() => _GuardHomeScreenState();
+}
+
+class _GuardHomeScreenState extends State<GuardHomeScreen> {
+  bool _isProcessing = false;
+
+  Future<void> _signOut() async {
+    await Amplify.Auth.signOut();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
     }
   }
 
-  void _confirmSignOut(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("¿Cerrar Sesión?"),
-        content: const Text("Tendrás que ingresar tu usuario y contraseña nuevamente."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _signOut(context);
-            }, 
-            child: const Text("Salir")
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- 2. LÓGICA DE ENTREGA (ESCÁNER QR) ---
-  Future<void> _handleQRScan(BuildContext context) async {
-    // A. Abrir cámara y esperar el código
-    final result = await Navigator.push(
+  // Lógica del QR (Igual que antes)
+  Future<void> _handleQRScan() async {
+    final String? scannedId = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const QRScanScreen()),
     );
 
-    // Si canceló o no leyó nada, salimos
-    if (result == null || !context.mounted) return;
+    if (scannedId == null) return;
 
-    final String packageId = result;
-
-    // Feedback visual
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("🔍 Verificando paquete..."), duration: Duration(seconds: 1)),
-    );
+    setState(() => _isProcessing = true);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("🔍 Procesando entrega..."), duration: Duration(seconds: 1)),
+      );
+    }
 
     try {
-      // B. Buscar el paquete en AWS
-      final request = ModelQueries.get(
+      final requestGet = ModelQueries.get(
         Package.classType, 
-        PackageModelIdentifier(id: packageId),
+        PackageModelIdentifier(id: scannedId),
         authorizationMode: APIAuthorizationType.apiKey
       );
-      final response = await Amplify.API.query(request: request).response;
-      final package = response.data;
+      final responseGet = await Amplify.API.query(request: requestGet).response;
+      final pkg = responseGet.data;
 
-      // C. Validaciones
-      if (package == null) {
-        throw Exception("Paquete no encontrado. Código inválido.");
-      }
+      if (pkg == null) throw Exception("Paquete no encontrado.");
+      if (pkg.status == PackageStatus.DELIVERED) throw Exception("¡Paquete ya entregado!");
 
-      if (package.status != PackageStatus.IN_WAREHOUSE) {
-        throw Exception("Este paquete ya fue entregado anteriormente.");
-      }
+      final updatedPkg = pkg.copyWith(status: PackageStatus.DELIVERED);
 
-      // D. Actualizar estado a DELIVERED (Entregado)
-      final updatedPackage = package.copyWith(
-        status: PackageStatus.DELIVERED,
-      );
+      final requestUpdate = ModelMutations.update(updatedPkg, authorizationMode: APIAuthorizationType.apiKey);
+      final responseUpdate = await Amplify.API.mutate(request: requestUpdate).response;
 
-      final mutation = ModelMutations.update(updatedPackage, authorizationMode: APIAuthorizationType.apiKey);
-      final mutationRes = await Amplify.API.mutate(request: mutation).response;
+      if (responseUpdate.hasErrors) throw Exception(responseUpdate.errors.first.message);
 
-      if (mutationRes.hasErrors) {
-        throw Exception(mutationRes.errors.first.message);
-      }
-
-      // E. Éxito
-      if (context.mounted) {
-        _showSuccessDialog(context, package.courier, package.recipient?.apartment?.unitNumber ?? "?");
-      }
+      if (mounted) _showSuccessDialog(pkg);
 
     } catch (e) {
-      if (context.mounted) {
-        _showErrorDialog(context, e.toString());
-      }
+      if (mounted) _showErrorDialog(e.toString());
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
-  // --- DIÁLOGOS DE FEEDBACK ---
-  void _showSuccessDialog(BuildContext context, String courier, String apto) {
+  void _showSuccessDialog(Package pkg) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.check_circle, color: Colors.green, size: 60),
-        title: const Text("¡Entrega Exitosa!"),
-        content: Text("El paquete de $courier para el Apto $apto ha sido marcado como entregado."),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            child: const Text("Aceptar"),
-          )
-        ],
+        backgroundColor: Colors.green[50],
+        title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 10), Text("¡Entrega Exitosa!")]),
+        content: Text("Destinatario: ${pkg.recipient?.name ?? 'Vecino'}\nEmpresa: ${pkg.courier}"),
+        actions: [ElevatedButton(onPressed: () => Navigator.pop(ctx), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), child: const Text("Aceptar"))],
       ),
     );
   }
 
-  void _showErrorDialog(BuildContext context, String error) {
+  void _showErrorDialog(String error) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.error, color: Colors.red, size: 60),
-        title: const Text("Error en Entrega"),
-        content: Text(error.replaceAll("Exception: ", "")),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cerrar"))
-        ],
-      ),
+      builder: (ctx) => AlertDialog(title: const Text("Error"), content: Text(error.replaceAll("Exception: ", "")), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cerrar"))]),
     );
   }
 
-  // --- 3. INTERFAZ GRÁFICA (UI) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Panel de Portería"),
+        title: const Text("Menú Portería"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            tooltip: "Cerrar Sesión",
-            onPressed: () => _confirmSignOut(context),
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.exit_to_app), onPressed: _signOut)],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -174,30 +111,11 @@ class GuardHomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.security, size: 80, color: Colors.indigo),
-            const SizedBox(height: 10),
-            const Text(
-              "¿Qué deseas hacer?",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
-            const SizedBox(height: 40),
-
-            // BOTÓN 1: LEER QR (Conectado a la lógica real)
-            _MenuButton(
-              icon: Icons.qr_code_scanner,
-              label: "LEER QR ENTREGA",
-              color: Colors.purple,
-              onTap: () => _handleQRScan(context),
-            ),
-
-            const SizedBox(height: 20),
-
-            // BOTÓN 2: REGISTRAR PAQUETE (Sin const para evitar errores)
+            // BOTÓN 1: REGISTRAR NUEVO (EL QUE FALTABA) 🔥
             _MenuButton(
               icon: Icons.add_box,
-              label: "REGISTRAR PAQUETE",
-              color: Colors.orange,
+              label: "REGISTRAR NUEVO PAQUETE",
+              color: Colors.indigo, // Azul oscuro principal
               onTap: () {
                 Navigator.push(
                   context,
@@ -208,15 +126,40 @@ class GuardHomeScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // BOTÓN 3: INVENTARIO (Sin const para evitar errores)
+            // BOTÓN 2: INVENTARIO (VER PENDIENTES)
             _MenuButton(
-              icon: Icons.grid_view,
-              label: "INVENTARIO PENDIENTE",
+              icon: Icons.inventory,
+              label: "VER INVENTARIO PENDIENTE",
               color: Colors.blue,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const GuardScreen()),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 20),
+
+            // BOTÓN 3: LEER QR
+            _MenuButton(
+              icon: Icons.qr_code_scanner,
+              label: "LEER QR DE ENTREGA",
+              color: Colors.orange[800]!,
+              onTap: _isProcessing ? null : _handleQRScan,
+            ),
+
+            const SizedBox(height: 20),
+
+            // BOTÓN 4: HISTORIAL
+            _MenuButton(
+              icon: Icons.history,
+              label: "HISTORIAL ENTREGAS",
+              color: Colors.green,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DeliveryHistoryScreen()),
                 );
               },
             ),
@@ -227,24 +170,18 @@ class GuardHomeScreen extends StatelessWidget {
   }
 }
 
-// Widget auxiliar para diseño de botones
 class _MenuButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _MenuButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
+  const _MenuButton({required this.icon, required this.label, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 80, 
+      height: 60,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
@@ -252,9 +189,9 @@ class _MenuButton extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           elevation: 5,
         ),
+        icon: Icon(icon, size: 28),
+        label: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         onPressed: onTap,
-        icon: Icon(icon, size: 35),
-        label: Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
   }

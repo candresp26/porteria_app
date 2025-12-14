@@ -1,11 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_api/amplify_api.dart';
 import 'package:amplify_storage_s3/amplify_storage_s3.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Para obtener el ID del usuario actual
-import 'login_screen.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ModelProvider.dart';
-import 'resident_package_detail_screen.dart'; // 👈 Importamos la nueva pantalla
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String tower;
@@ -20,85 +22,139 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<Package> _myPackages = [];
   bool _isLoading = true;
-  String _userName = "";
+  String _residentName = "Vecino";
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadProfileAndPackages();
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> _loadProfileAndPackages() async {
     final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId'); 
+    
     setState(() {
-      _userName = prefs.getString('username') ?? "Vecino";
+      _residentName = prefs.getString('username') ?? "Vecino";
     });
-    _fetchMyPackages();
+
+    if (userId != null) {
+      _fetchMyPackages(userId);
+    } else {
+      print("❌ Error: No se encontró User ID en la sesión.");
+      setState(() => _isLoading = false);
+    }
   }
 
-// 1. TRAER SOLO MIS PAQUETES (Corregido para leer ID de SharedPreferences)
-  Future<void> _fetchMyPackages() async {
+  // 🔥 FUNCIÓN BLINDADA PARA TRAER PAQUETES
+  Future<void> _fetchMyPackages(String userId) async {
     setState(() => _isLoading = true);
     try {
-      // ❌ ANTES: Esto fallaba porque no usamos Cognito para el login
-      // final user = await Amplify.Auth.getCurrentUser(); 
-      
-      // ✅ AHORA: Leemos el ID que guardamos en el Login manualmente
-      final prefs = await SharedPreferences.getInstance();
-      final currentUserId = prefs.getString('userId'); 
+    String graphQLDocument = '''
+        query ListMyPackages {
+          listPackages(filter: {
+            recipientID: {eq: "$userId"}, 
+            status: {eq: IN_WAREHOUSE}
+          }) {
+            items {
+              id
+              recipientID
+              courier
+              photoKey
+              receivedAt
+              status
+              recipient {
+                id             
+                username       
+                name
+                role           
+                isFirstLogin   
+                apartment {
+                  id           
+                  tower
+                  unitNumber
+                  accessCode   
+                }
+              }
+            }
+          }
+        }
+      ''';
 
-      if (currentUserId == null) {
-        print("⚠️ Error: No se encontró un ID de usuario guardado localmente.");
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // Consultamos TODOS los paquetes
-      final request = ModelQueries.list(
-        Package.classType, 
-        authorizationMode: APIAuthorizationType.apiKey
+      final request = GraphQLRequest<String>(
+        document: graphQLDocument,
+        authorizationMode: APIAuthorizationType.apiKey,
       );
-      
+
       final response = await Amplify.API.query(request: request).response;
 
       if (response.data != null) {
-        // Filtramos usando el ID que recuperamos del celular
-        final pkgs = response.data!.items
-            .whereType<Package>()
-            .where((p) => p.recipient?.id == currentUserId) // 👈 Aquí usamos el ID local
-            .toList();
+        final Map<String, dynamic> data = json.decode(response.data!);
+        final List items = data['listPackages']['items'];
 
-        // Ordenamos: Lo más reciente primero
-        pkgs.sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
+        List<Package> myPackages = [];
         
+        // 🕵️‍♂️ ZONA DE DEPURACIÓN (Mira tu consola)
+        print("📦 PAQUETES ENCONTRADOS EN LA NUBE: ${items.length}");
+
+        for (var item in items) {
+          try {
+            // Imprimimos el dato crudo para ver si tiene 'courier: null'
+            print("🔎 Analizando paquete: $item"); 
+
+            if (item == null) continue;
+
+            // Intentamos convertirlo. Si falla aquí, salta al 'catch' de abajo
+            final pkg = Package.fromJson(item);
+            myPackages.add(pkg);
+
+          } catch (e) {
+            // 🛡️ AQUÍ ATRAPAMOS EL ERROR SIN QUE LA APP EXPLOTE
+            print("💀 PAQUETE CORRUPTO IGNORADO: $e");
+            // No hacemos nada más, simplemente no lo agregamos a la lista
+          }
+        }
+
+        // Ordenar más recientes primero
+        myPackages.sort((a, b) => 
+          (b.receivedAt ?? TemporalDateTime.now()).compareTo(a.receivedAt ?? TemporalDateTime.now())
+        );
+
         setState(() {
-          _myPackages = pkgs;
+          _myPackages = myPackages;
           _isLoading = false;
         });
       }
     } catch (e) {
-      print("Error cargando paquetes: $e");
-      setState(() => _isLoading = false);
+      print("Error general cargando paquetes: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-  // Helper imagen (Para la miniatura en la lista)
+
   Future<String> _getImageUrl(String key) async {
     try {
       final result = await Amplify.Storage.getUrl(
         path: StoragePath.fromString(key),
-        options: const StorageGetUrlOptions(pluginOptions: S3GetUrlPluginOptions(validateObjectExistence: true, expiresIn: Duration(minutes: 60))),
+        options: const StorageGetUrlOptions(
+          pluginOptions: S3GetUrlPluginOptions(validateObjectExistence: true, expiresIn: Duration(minutes: 60)),
+        ),
       ).result;
       return result.url.toString();
-    } catch (e) { return ""; }
+    } catch (e) {
+      return "";
+    }
   }
-  
-  // Cerrar Sesión
+
   Future<void> _signOut() async {
     await Amplify.Auth.signOut();
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     if (mounted) {
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -109,63 +165,152 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Hola, $_userName", style: const TextStyle(fontSize: 16)),
-            Text("Apto ${widget.unit} - Torre ${widget.tower}", style: const TextStyle(fontSize: 12)),
+            const Text("Mis Paquetes", style: TextStyle(fontSize: 18)),
+            Text("${widget.tower} - Apto ${widget.unit}", style: const TextStyle(fontSize: 12)),
           ],
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
         actions: [
-          IconButton(icon: const Icon(Icons.exit_to_app), onPressed: _signOut)
+          IconButton(icon: const Icon(Icons.refresh), onPressed: () => _loadProfileAndPackages()),
+          IconButton(icon: const Icon(Icons.exit_to_app), onPressed: _signOut),
         ],
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator()) 
-        : _myPackages.isEmpty 
-            ? const Center(child: Text("No tienes paquetes pendientes 🎉"))
-            : RefreshIndicator(
-                onRefresh: _fetchMyPackages,
-                child: ListView.builder(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _myPackages.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[300]),
+                      const SizedBox(height: 20),
+                      const Text("No tienes paquetes pendientes 🎉", style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 10),
+                      // Botón extra por si quieres forzar recarga
+                      TextButton.icon(
+                        onPressed: () => _loadProfileAndPackages(),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text("Recargar")
+                      )
+                    ],
+                  ),
+                )
+              : ListView.builder(
                   padding: const EdgeInsets.all(15),
                   itemCount: _myPackages.length,
                   itemBuilder: (context, index) {
                     final pkg = _myPackages[index];
-                    final isPending = pkg.status == PackageStatus.IN_WAREHOUSE;
+                    
+                    // Manejo seguro de fechas
+                    String dateStr = "Fecha desconocida";
+                    if (pkg.receivedAt != null) {
+                       final date = DateTime.parse(pkg.receivedAt.toString()).toLocal();
+                       dateStr = DateFormat('dd MMM - hh:mm a').format(date);
+                    }
 
                     return Card(
-                      elevation: 3,
-                      margin: const EdgeInsets.only(bottom: 15),
-                      // Si ya se entregó, se pone un poco gris
-                      color: isPending ? Colors.white : Colors.grey[100],
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(10),
-                        leading: Container(
-                          width: 60, height: 60,
-                          decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
-                          child: pkg.photoKey != null 
-                            ? FutureBuilder<String>(
-                                future: _getImageUrl(pkg.photoKey!),
-                                builder: (ctx, snap) => snap.hasData ? Image.network(snap.data!, fit: BoxFit.cover) : const Icon(Icons.image)
-                              )
-                            : const Icon(Icons.inventory_2),
-                        ),
-                        title: Text(pkg.courier, style: TextStyle(fontWeight: FontWeight.bold, color: isPending ? Colors.black : Colors.grey)),
-                        subtitle: Text(isPending ? "🔵 En Portería - Toca para ver QR" : "✅ Entregado", 
-                          style: TextStyle(color: isPending ? Colors.blue : Colors.green)
-                        ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                        onTap: () {
-                          // AL TOCAR, VAMOS AL DETALLE CON QR
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => ResidentPackageDetailScreen(package: pkg))
-                          );
-                        },
+                      elevation: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      child: Column(
+                        children: [
+                          // A. FOTO
+                          if (pkg.photoKey != null)
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                              child: SizedBox(
+                                height: 200,
+                                width: double.infinity,
+                                child: FutureBuilder<String>(
+                                  future: _getImageUrl(pkg.photoKey!),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return Container(
+                                        height: 200, 
+                                        color: Colors.grey[100], 
+                                        child: const Center(child: CircularProgressIndicator())
+                                      );
+                                    }
+                                    if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                                      return Image.network(snapshot.data!, fit: BoxFit.cover);
+                                    }
+                                    return Container(color: Colors.grey[200], child: const Icon(Icons.image_not_supported));
+                                  },
+                                ),
+                              ),
+                            ),
+                          
+                          // B. INFO
+                          Padding(
+                            padding: const EdgeInsets.all(15),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(pkg.courier.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(color: Colors.orange[100], borderRadius: BorderRadius.circular(8)),
+                                      child: const Text("En Portería", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                Text("Llegó: $dateStr", style: const TextStyle(color: Colors.grey)),
+                                const SizedBox(height: 15),
+                                
+                                // C. BOTÓN QR
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.indigo,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    icon: const Icon(Icons.qr_code),
+                                    label: const Text("VER CÓDIGO DE RETIRO"),
+                                    onPressed: () => _showQRDialog(context, pkg),
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
                 ),
+    );
+  }
+
+  void _showQRDialog(BuildContext context, Package pkg) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Código de Retiro", textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 200,
+              width: 200,
+              child: QrImageView(
+                data: pkg.id,
+                version: QrVersions.auto,
+                size: 200.0,
               ),
+            ),
+            const SizedBox(height: 10),
+            const Text("Muestra este código al portero", style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cerrar")),
+        ],
+      ),
     );
   }
 }

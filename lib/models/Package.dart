@@ -33,6 +33,8 @@ class Package extends amplify_core.Model {
   final amplify_core.TemporalDateTime? _deliveredAt;
   final User? _recipient;
   final PackageStatus? _status;
+  final String? _signatureKey;
+  final DeliveryMethod? _deliveryMethod;
   final amplify_core.TemporalDateTime? _createdAt;
   final amplify_core.TemporalDateTime? _updatedAt;
 
@@ -100,6 +102,14 @@ class Package extends amplify_core.Model {
     }
   }
   
+  String? get signatureKey {
+    return _signatureKey;
+  }
+  
+  DeliveryMethod? get deliveryMethod {
+    return _deliveryMethod;
+  }
+  
   amplify_core.TemporalDateTime? get createdAt {
     return _createdAt;
   }
@@ -108,9 +118,9 @@ class Package extends amplify_core.Model {
     return _updatedAt;
   }
   
-  const Package._internal({required this.id, required courier, photoKey, required receivedAt, deliveredAt, recipient, required status, createdAt, updatedAt}): _courier = courier, _photoKey = photoKey, _receivedAt = receivedAt, _deliveredAt = deliveredAt, _recipient = recipient, _status = status, _createdAt = createdAt, _updatedAt = updatedAt;
+  const Package._internal({required this.id, required courier, photoKey, required receivedAt, deliveredAt, recipient, required status, signatureKey, deliveryMethod, createdAt, updatedAt}): _courier = courier, _photoKey = photoKey, _receivedAt = receivedAt, _deliveredAt = deliveredAt, _recipient = recipient, _status = status, _signatureKey = signatureKey, _deliveryMethod = deliveryMethod, _createdAt = createdAt, _updatedAt = updatedAt;
   
-  factory Package({String? id, required String courier, String? photoKey, required amplify_core.TemporalDateTime receivedAt, amplify_core.TemporalDateTime? deliveredAt, User? recipient, required PackageStatus status}) {
+  factory Package({String? id, required String courier, String? photoKey, required amplify_core.TemporalDateTime receivedAt, amplify_core.TemporalDateTime? deliveredAt, User? recipient, required PackageStatus status, String? signatureKey, DeliveryMethod? deliveryMethod}) {
     return Package._internal(
       id: id == null ? amplify_core.UUID.getUUID() : id,
       courier: courier,
@@ -118,7 +128,9 @@ class Package extends amplify_core.Model {
       receivedAt: receivedAt,
       deliveredAt: deliveredAt,
       recipient: recipient,
-      status: status);
+      status: status,
+      signatureKey: signatureKey,
+      deliveryMethod: deliveryMethod);
   }
   
   bool equals(Object other) {
@@ -135,7 +147,9 @@ class Package extends amplify_core.Model {
       _receivedAt == other._receivedAt &&
       _deliveredAt == other._deliveredAt &&
       _recipient == other._recipient &&
-      _status == other._status;
+      _status == other._status &&
+      _signatureKey == other._signatureKey &&
+      _deliveryMethod == other._deliveryMethod;
   }
   
   @override
@@ -153,6 +167,8 @@ class Package extends amplify_core.Model {
     buffer.write("deliveredAt=" + (_deliveredAt != null ? _deliveredAt!.format() : "null") + ", ");
     buffer.write("recipient=" + (_recipient != null ? _recipient!.toString() : "null") + ", ");
     buffer.write("status=" + (_status != null ? amplify_core.enumToString(_status)! : "null") + ", ");
+    buffer.write("signatureKey=" + "$_signatureKey" + ", ");
+    buffer.write("deliveryMethod=" + (_deliveryMethod != null ? amplify_core.enumToString(_deliveryMethod)! : "null") + ", ");
     buffer.write("createdAt=" + (_createdAt != null ? _createdAt!.format() : "null") + ", ");
     buffer.write("updatedAt=" + (_updatedAt != null ? _updatedAt!.format() : "null"));
     buffer.write("}");
@@ -160,7 +176,7 @@ class Package extends amplify_core.Model {
     return buffer.toString();
   }
   
-  Package copyWith({String? courier, String? photoKey, amplify_core.TemporalDateTime? receivedAt, amplify_core.TemporalDateTime? deliveredAt, User? recipient, PackageStatus? status}) {
+  Package copyWith({String? courier, String? photoKey, amplify_core.TemporalDateTime? receivedAt, amplify_core.TemporalDateTime? deliveredAt, User? recipient, PackageStatus? status, String? signatureKey, DeliveryMethod? deliveryMethod}) {
     return Package._internal(
       id: id,
       courier: courier ?? this.courier,
@@ -168,7 +184,9 @@ class Package extends amplify_core.Model {
       receivedAt: receivedAt ?? this.receivedAt,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       recipient: recipient ?? this.recipient,
-      status: status ?? this.status);
+      status: status ?? this.status,
+      signatureKey: signatureKey ?? this.signatureKey,
+      deliveryMethod: deliveryMethod ?? this.deliveryMethod);
   }
   
   Package copyWithModelFieldValues({
@@ -177,7 +195,9 @@ class Package extends amplify_core.Model {
     ModelFieldValue<amplify_core.TemporalDateTime>? receivedAt,
     ModelFieldValue<amplify_core.TemporalDateTime?>? deliveredAt,
     ModelFieldValue<User?>? recipient,
-    ModelFieldValue<PackageStatus>? status
+    ModelFieldValue<PackageStatus>? status,
+    ModelFieldValue<String?>? signatureKey,
+    ModelFieldValue<DeliveryMethod?>? deliveryMethod
   }) {
     return Package._internal(
       id: id,
@@ -186,7 +206,9 @@ class Package extends amplify_core.Model {
       receivedAt: receivedAt == null ? this.receivedAt : receivedAt.value,
       deliveredAt: deliveredAt == null ? this.deliveredAt : deliveredAt.value,
       recipient: recipient == null ? this.recipient : recipient.value,
-      status: status == null ? this.status : status.value
+      status: status == null ? this.status : status.value,
+      signatureKey: signatureKey == null ? this.signatureKey : signatureKey.value,
+      deliveryMethod: deliveryMethod == null ? this.deliveryMethod : deliveryMethod.value
     );
   }
   
@@ -202,11 +224,13 @@ class Package extends amplify_core.Model {
           : User.fromJson(new Map<String, dynamic>.from(json['recipient']))
         : null,
       _status = amplify_core.enumFromString<PackageStatus>(json['status'], PackageStatus.values),
+      _signatureKey = json['signatureKey'],
+      _deliveryMethod = amplify_core.enumFromString<DeliveryMethod>(json['deliveryMethod'], DeliveryMethod.values),
       _createdAt = json['createdAt'] != null ? amplify_core.TemporalDateTime.fromString(json['createdAt']) : null,
       _updatedAt = json['updatedAt'] != null ? amplify_core.TemporalDateTime.fromString(json['updatedAt']) : null;
   
   Map<String, dynamic> toJson() => {
-    'id': id, 'courier': _courier, 'photoKey': _photoKey, 'receivedAt': _receivedAt?.format(), 'deliveredAt': _deliveredAt?.format(), 'recipient': _recipient?.toJson(), 'status': amplify_core.enumToString(_status), 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
+    'id': id, 'courier': _courier, 'photoKey': _photoKey, 'receivedAt': _receivedAt?.format(), 'deliveredAt': _deliveredAt?.format(), 'recipient': _recipient?.toJson(), 'status': amplify_core.enumToString(_status), 'signatureKey': _signatureKey, 'deliveryMethod': amplify_core.enumToString(_deliveryMethod), 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
   };
   
   Map<String, Object?> toMap() => {
@@ -217,6 +241,8 @@ class Package extends amplify_core.Model {
     'deliveredAt': _deliveredAt,
     'recipient': _recipient,
     'status': _status,
+    'signatureKey': _signatureKey,
+    'deliveryMethod': _deliveryMethod,
     'createdAt': _createdAt,
     'updatedAt': _updatedAt
   };
@@ -231,6 +257,8 @@ class Package extends amplify_core.Model {
     fieldName: "recipient",
     fieldType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.model, ofModelName: 'User'));
   static final STATUS = amplify_core.QueryField(fieldName: "status");
+  static final SIGNATUREKEY = amplify_core.QueryField(fieldName: "signatureKey");
+  static final DELIVERYMETHOD = amplify_core.QueryField(fieldName: "deliveryMethod");
   static var schema = amplify_core.Model.defineSchema(define: (amplify_core.ModelSchemaDefinition modelSchemaDefinition) {
     modelSchemaDefinition.name = "Package";
     modelSchemaDefinition.pluralName = "Packages";
@@ -286,6 +314,18 @@ class Package extends amplify_core.Model {
     modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
       key: Package.STATUS,
       isRequired: true,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.enumeration)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: Package.SIGNATUREKEY,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: Package.DELIVERYMETHOD,
+      isRequired: false,
       ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.enumeration)
     ));
     

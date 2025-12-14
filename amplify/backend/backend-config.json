@@ -62,6 +62,31 @@
       "service": "Cognito"
     }
   },
+  "function": {
+    "notifyResidents": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_notifyResidents_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "notifyResidents"
+        }
+      ]
+    },
+    "AMPLIFY_function_notifyResidents_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "notifyResidents"
+        }
+      ]
+    }
+  },
   "storage": {
     "s3porteria": {
       "dependsOn": [],

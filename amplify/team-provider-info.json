@@ -20,6 +20,12 @@
       },
       "storage": {
         "s3porteria": {}
+      },
+      "function": {
+        "notifyResidents": {
+          "deploymentBucketName": "amplify-porteriaaapp-dev-fb3ce-deployment",
+          "s3Key": "amplify-builds/notifyResidents-43357171687362487752-build.zip"
+        }
       }
     }
   }
