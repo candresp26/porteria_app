@@ -3,13 +3,15 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_api/amplify_api.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_storage_s3/amplify_storage_s3.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'amplifyconfiguration.dart'; // El archivo que genera Amplify CLI
-import 'models/ModelProvider.dart'; // Tus modelos
+import 'amplifyconfiguration.dart';
+import 'models/ModelProvider.dart';
 
-// Importamos las pantallas
+// ✅ IMPORTS CLAROS (Asegúrate de que las rutas coincidan con tus carpetas)
 import 'screens/login_screen.dart';
-import 'screens/guard_home_screen.dart'; // 👈 La nueva pantalla principal
+import 'screens/guard_home_screen.dart';
+import 'screens/dashboard_screen.dart'; 
 
 void main() {
   runApp(const MyApp());
@@ -24,8 +26,10 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _amplifyConfigured = false;
-  bool _isUserLoggedIn = false;
   bool _isLoading = true;
+  
+  // 🔴 CORRECCIÓN 1: Quitamos 'const' y dejamos un valor nulo inicial o instanciamos simple
+  Widget _startScreen = LoginScreen(); 
 
   @override
   void initState() {
@@ -33,10 +37,8 @@ class _MyAppState extends State<MyApp> {
     _configureAmplify();
   }
 
-  // 1. Configuración de Amplify y Verificación de Sesión
   Future<void> _configureAmplify() async {
     try {
-      // Evitar configurar dos veces (Hot Reload)
       if (!Amplify.isConfigured) {
         final api = AmplifyAPI(options: APIPluginOptions(modelProvider: ModelProvider.instance));
         final auth = AmplifyAuthCognito();
@@ -46,26 +48,54 @@ class _MyAppState extends State<MyApp> {
         await Amplify.configure(amplifyconfig);
       }
       
-      // 2. Comprobar si ya hay un usuario logueado
-      try {
-        final result = await Amplify.Auth.fetchAuthSession();
-        if (result.isSignedIn) {
+      await _checkSessionAndRole();
+
+    } catch (e) {
+      print('Error configurando Amplify: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _checkSessionAndRole() async {
+    try {
+      final session = await Amplify.Auth.fetchAuthSession();
+      
+      if (session.isSignedIn) {
+        final prefs = await SharedPreferences.getInstance();
+        final role = prefs.getString('role');
+
+        print("🔍 Main: Sesión activa. Rol: $role");
+
+        if (role == 'GUARD') {
+           setState(() {
+             // 🔴 CORRECCIÓN 2: Sin 'const'
+             _startScreen = GuardHomeScreen();
+           });
+        } else if (role == 'RESIDENT' || role == 'ADMIN') { 
+           setState(() {
+             // 🔴 CORRECCIÓN 3: Sin 'const'
+             _startScreen = DashboardScreen(); 
+           });
+        } else {
           setState(() {
-            _isUserLoggedIn = true;
+            _startScreen = LoginScreen();
           });
         }
-      } catch (e) {
-        print("No hay sesión activa: $e");
+      } else {
+        setState(() {
+          _startScreen = LoginScreen();
+        });
       }
-
+    } catch (e) {
+      print("Error sesión: $e");
+      setState(() {
+         _startScreen = LoginScreen();
+      });
+    } finally {
       setState(() {
         _amplifyConfigured = true;
         _isLoading = false;
       });
-      
-    } catch (e) {
-      print('Error configurando Amplify: $e');
-      setState(() => _isLoading = false);
     }
   }
 
@@ -78,12 +108,9 @@ class _MyAppState extends State<MyApp> {
         primarySwatch: Colors.indigo,
         useMaterial3: true,
       ),
-      // Lógica de navegación inicial
       home: _isLoading 
-        ? const Scaffold(body: Center(child: CircularProgressIndicator())) // Cargando...
-        : _isUserLoggedIn 
-            ? const GuardHomeScreen() // 👈 Si ya entró, va al menú nuevo
-            : const LoginScreen(),    // 👈 Si no, al Login
+        ? const Scaffold(body: Center(child: CircularProgressIndicator())) 
+        : _startScreen, 
     );
   }
 }

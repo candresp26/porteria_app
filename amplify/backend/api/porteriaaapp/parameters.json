@@ -2,11 +2,11 @@
   "AppSyncApiName": "porteriaaapp",
   "DynamoDBBillingMode": "PAY_PER_REQUEST",
   "DynamoDBEnableServerSideEncryption": false,
+  "AuthModeLastUpdated": "2025-12-19T22:40:30.965Z",
   "AuthCognitoUserPoolId": {
     "Fn::GetAtt": [
-      "authporteriaaappc66d159b",
+      "authporteriaaapp1f5c1b511f5c1b51",
       "Outputs.UserPoolId"
     ]
-  },
-  "AuthModeLastUpdated": "2025-12-03T01:45:04.908Z"
+  }
 }

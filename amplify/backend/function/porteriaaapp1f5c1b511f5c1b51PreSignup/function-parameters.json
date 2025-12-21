@@ -1,0 +1,16 @@
+{
+  "trigger": true,
+  "modules": [
+    "custom"
+  ],
+  "parentResource": "porteriaaapp1f5c1b511f5c1b51",
+  "functionName": "porteriaaapp1f5c1b511f5c1b51PreSignup",
+  "resourceName": "porteriaaapp1f5c1b511f5c1b51PreSignup",
+  "parentStack": "auth",
+  "triggerEnvs": "[]",
+  "triggerDir": "C:\\snapshot\\amplify-cli\\build\\node_modules\\@aws-amplify\\amplify-category-auth\\provider-utils\\awscloudformation\\triggers\\PreSignup",
+  "triggerTemplate": "PreSignup.json.ejs",
+  "triggerEventPath": "PreSignup.event.json",
+  "roleName": "porteriaaapp1f5c1b511f5c1b51PreSignup",
+  "skipEdit": true
+}

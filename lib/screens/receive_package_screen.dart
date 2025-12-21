@@ -5,6 +5,7 @@ import 'package:amplify_api/amplify_api.dart';
 import 'package:amplify_storage_s3/amplify_storage_s3.dart'; 
 import 'package:image_picker/image_picker.dart'; 
 import '../models/ModelProvider.dart';
+import '../widgets/guard_pin_dialog.dart';
 
 class ReceivePackageScreen extends StatefulWidget {
   const ReceivePackageScreen({super.key});
@@ -17,7 +18,6 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
   final _formKey = GlobalKey<FormState>();
   final _courierController = TextEditingController();
   
-  // Variables para Dropdowns
   List<Apartment> _allApartments = [];
   List<String> _towers = [];
   List<Apartment> _unitsInTower = [];
@@ -27,7 +27,6 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
   bool _isLoading = false;
   bool _isLoadingData = true;
 
-  // VARIABLES PARA LA CÁMARA 📸
   final ImagePicker _picker = ImagePicker();
   XFile? _imageFile; 
 
@@ -37,7 +36,6 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
     _loadApartments();
   }
 
-  // Carga de datos inicial
   Future<void> _loadApartments() async {
     try {
       final request = ModelQueries.list(Apartment.classType, authorizationMode: APIAuthorizationType.apiKey);
@@ -66,32 +64,31 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
     });
   }
 
-  // 📸 FUNCIÓN 1: ABRIR CÁMARA
   Future<void> _takePhoto() async {
     try {
       final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera, 
-        imageQuality: 50, // Comprimimos para optimizar
+        source: ImageSource.camera,
+        // 👇 OPTIMIZACIÓN CRÍTICA PARA SAMSUNG S23 Y CELULARES MODERNOS 👇
+        imageQuality: 50,      
+        maxWidth: 1024,        
       );
       
       if (photo != null) {
+        final bytes = await photo.readAsBytes();
+        print("📸 Foto lista. Tamaño: ${(bytes.length / 1024).toStringAsFixed(2)} KB");
+
         setState(() {
           _imageFile = photo;
         });
       }
     } catch (e) {
       print("Error tomando foto: $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error cámara: $e")));
     }
   }
 
-// ☁️ FUNCIÓN 2: SUBIR A S3 (Versión corregida con prefijo 'public/')
   Future<String?> _uploadPhotoToS3() async {
     if (_imageFile == null) return null;
-    
-    if (_selectedTower == null || _selectedApartment == null) {
-       throw Exception("Selecciona Torre y Apartamento antes de subir la foto.");
-    }
+    if (_selectedTower == null || _selectedApartment == null) throw Exception("Faltan datos de torre/apto");
     
     try {
       final now = DateTime.now();
@@ -104,30 +101,20 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
       final unitNumber = _selectedApartment!.unitNumber; 
       final uniqueId = now.millisecondsSinceEpoch.toString();
 
+      // Estructura: public/Torre/Apto/Foto.jpg
       final filename = "PKT-$fechaString-$unitNumber-$uniqueId.jpg";
-
-      // CORRECCIÓN DE SEGURIDAD:
-      // AWS exige que los archivos de acceso "Guest" estén dentro de 'public/'
       final fullPath = "public/$towerName/$unitNumber/$filename";
-      
       final file = File(_imageFile!.path);
-
-      print("📂 Subiendo a ruta segura: $fullPath");
 
       final uploadResult = await Amplify.Storage.uploadFile(
         localFile: AWSFile.fromPath(file.path),
         path: StoragePath.fromString(fullPath), 
-        onProgress: (progress) {
-          print("Subiendo: ${progress.fractionCompleted * 100}%");
-        }
       ).result;
 
       return uploadResult.uploadedItem.path; 
-      
     } catch (e) {
       print("Error subiendo a S3: $e");
-      // Importante: Lanzamos el error original para ver detalles si falla de nuevo
-      throw Exception("AWS rechazó el archivo: ${e.toString()}");
+      throw Exception("Error subiendo foto: ${e.toString()}");
     }
   }
 
@@ -138,78 +125,98 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona Torre y Apartamento')));
       return;
     }
-
-    // Validación opcional: Obligar foto
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📸 ¡Falta la foto del paquete!')));
       return;
     }
 
+    // 1. Validaciones OK, pedimos PIN
+    final String? guardName = await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const GuardPinDialog(action: "Registrar"),
+    );
+
+    if (guardName == null) return;
+
     setState(() => _isLoading = true);
 
     try {
-      // 1. Subir Foto primero (Organizada por carpetas)
-      print("📸 Subiendo foto...");
+      // 2. Subir Foto
+      print("🚀 Subiendo foto a S3...");
       final photoKey = await _uploadPhotoToS3();
       print("✅ Foto subida: $photoKey");
 
-      // 2. Buscar Destinatario (Estrategia robusta)
-      final userReq = ModelQueries.list(User.classType, authorizationMode: APIAuthorizationType.apiKey);
-      final userRes = await Amplify.API.query(request: userReq).response;
+   // 3. Buscar Destinatario (CORREGIDO CON API KEY)
+      print("🔍 Buscando residentes en Torre: $_selectedTower, Apto: ${_selectedApartment!.unitNumber}");
       
-      // Filtramos en memoria
-      final residents = userRes.data!.items.whereType<User>().where(
-        (u) => u.apartment?.id == _selectedApartment!.id
-      ).toList();
+      final requestUsers = ModelQueries.list(
+        User.classType,
+        // Buscamos coincidencia exacta de Torre y Unidad
+        where: User.TOWER.eq(_selectedTower).and(User.UNIT.eq(_selectedApartment!.unitNumber)),
+        // 👇👇 LA LÍNEA MÁGICA QUE ARREGLA EL "0 RESULTADOS" 👇👇
+        authorizationMode: APIAuthorizationType.apiKey  
+      );
+      
+      final responseUsers = await Amplify.API.query(request: requestUsers).response;
+      
+      // Verificamos si hubo errores de seguridad
+      if (responseUsers.hasErrors) {
+         print("❌ Error de Permisos: ${responseUsers.errors.first.message}");
+         throw Exception("Error de permisos: ${responseUsers.errors.first.message}");
+      }
 
-      if (residents.isEmpty) throw Exception("No hay residentes en este apartamento.");
-      final destinatario = residents.first;
+      final residents = responseUsers.data?.items;
+      print("📊 Residentes encontrados: ${residents?.length ?? 0}");
 
-      // 3. Crear Paquete (Mutación Manual para evitar errores de permisos)
-      const graphQLDocument = '''
-        mutation CreatePackage(\$courier: String!, \$recipientID: ID!, \$status: PackageStatus!, \$receivedAt: AWSDateTime!, \$photoKey: String) {
-          createPackage(input: {
-            courier: \$courier, 
-            recipientID: \$recipientID, 
-            status: \$status, 
-            receivedAt: \$receivedAt,
-            photoKey: \$photoKey
-          }) {
-            id
-            courier
-            photoKey
-          }
-        }
-      ''';
+      if (residents == null || residents.isEmpty) {
+        throw Exception("No hay residentes registrados en Torre $_selectedTower - ${_selectedApartment!.unitNumber}");
+      }
 
-      final operation = Amplify.API.mutate(
-        request: GraphQLRequest<String>(
-          document: graphQLDocument,
-          variables: {
-            'courier': _courierController.text.trim(),
-            'recipientID': destinatario.id,
-            'status': 'IN_WAREHOUSE',
-            'receivedAt': TemporalDateTime.now().toString(),
-            'photoKey': photoKey, 
-          },
-          authorizationMode: APIAuthorizationType.apiKey,
-        ),
+      // Tomamos el primero (usamos whereType para evitar nulos)
+      final destinatario = residents.whereType<User>().first;
+      print("✅ Destinatario: ${destinatario.name}");
+
+// 4. Crear Paquete
+      print("📦 Preparando creación del paquete...");
+      
+      final newPackage = Package(
+        courier: _courierController.text.trim(),
+        recipient: destinatario,  
+        status: PackageStatus.IN_WAREHOUSE,
+        receivedAt: TemporalDateTime.now(),
+        photoKey: photoKey,
+        receivedBy: guardName,
       );
 
-      final response = await operation.response;
-      if (response.hasErrors) throw Exception(response.errors.first.message);
+      // 👇 CAMBIO FINAL: Usamos apiKey porque tu base de datos es pública
+      final requestCreate = ModelMutations.create(
+        newPackage, 
+        authorizationMode: APIAuthorizationType.apiKey 
+      );
+      
+      final responseCreate = await Amplify.API.mutate(request: requestCreate).response;
+
+      if (responseCreate.hasErrors) {
+        print("❌ Error GraphQL: ${responseCreate.errors.first.message}");
+        throw Exception("Error creando paquete: ${responseCreate.errors.first.message}");
+      }
+
+      print("🎉 ¡PAQUETE GUARDADO! ID: ${newPackage.id}");
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('📦 Paquete registrado con FOTO!'), backgroundColor: Colors.green)
+          SnackBar(content: Text('📦 Registrado por $guardName'), backgroundColor: Colors.green)
         );
-        Navigator.pop(context);
+        Navigator.pop(context); 
       }
 
     } catch (e) {
-      print("Error: $e");
+      print("🔥 Error: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red)
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -228,7 +235,7 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
             key: _formKey,
             child: Column(
               children: [
-                // --- CÁMARA ---
+                // CÁMARA
                 GestureDetector(
                   onTap: _takePhoto,
                   child: Container(
@@ -268,7 +275,7 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
                 
                 const SizedBox(height: 20),
                 
-                // Dropdowns
+                // DROPDOWNS
                 DropdownButtonFormField<String>(
                   value: _selectedTower,
                   decoration: const InputDecoration(labelText: "Torre", border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_city)),
@@ -287,7 +294,7 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
                 ),
                 const SizedBox(height: 15),
 
-                // Empresa
+                // EMPRESA
                 TextFormField(
                   controller: _courierController,
                   decoration: const InputDecoration(labelText: "Empresa Transportadora", prefixIcon: Icon(Icons.local_shipping), border: OutlineInputBorder()),
@@ -295,6 +302,7 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
                 ),
                 const SizedBox(height: 30),
 
+                // BOTÓN
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -307,7 +315,7 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
                           children: const [
                             CircularProgressIndicator(color: Colors.white),
                             SizedBox(width: 10),
-                            Text("Subiendo foto...")
+                            Text("Guardando...")
                           ],
                         )
                       : const Text("GUARDAR PAQUETE"),

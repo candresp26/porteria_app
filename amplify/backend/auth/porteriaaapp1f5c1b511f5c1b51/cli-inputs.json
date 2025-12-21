@@ -1,10 +1,10 @@
 {
   "version": "1",
   "cognitoConfig": {
-    "identityPoolName": "porteriaaappc66d159b_identitypool_c66d159b",
-    "allowUnauthenticatedIdentities": true,
-    "resourceNameTruncated": "porterc66d159b",
-    "userPoolName": "porteriaaappc66d159b_userpool_c66d159b",
+    "identityPoolName": "porteriaaapp1f5c1b51_identitypool_1f5c1b51",
+    "allowUnauthenticatedIdentities": false,
+    "resourceNameTruncated": "porter1f5c1b51",
+    "userPoolName": "porteriaaapp1f5c1b51_userpool_1f5c1b51",
     "autoVerifiedAttributes": [
       "email"
     ],
@@ -20,7 +20,8 @@
     "passwordPolicyMinLength": 8,
     "passwordPolicyCharacters": [],
     "requiredAttributes": [
-      "email"
+      "email",
+      "name"
     ],
     "aliasAttributes": [],
     "userpoolClientGenerateSecret": false,
@@ -31,15 +32,21 @@
     "userpoolClientReadAttributes": [
       "email"
     ],
-    "userpoolClientLambdaRole": "porterc66d159b_userpoolclient_lambda_role",
+    "userpoolClientLambdaRole": "porter1f5c1b51_userpoolclient_lambda_role",
     "userpoolClientSetAttributes": false,
-    "sharedId": "c66d159b",
-    "resourceName": "porteriaaappc66d159b",
+    "sharedId": "1f5c1b51",
+    "resourceName": "porteriaaapp1f5c1b511f5c1b51",
     "authSelections": "identityPoolAndUserPool",
     "useDefault": "manual",
-    "usernameAttributes": [
-      "email"
-    ],
+    "thirdPartyAuth": false,
+    "userPoolGroups": false,
+    "adminQueries": false,
+    "triggers": {
+      "PreSignup": [
+        "custom"
+      ]
+    },
+    "hostedUI": false,
     "userPoolGroupList": [],
     "serviceName": "Cognito",
     "usernameCaseSensitive": false,
@@ -57,16 +64,22 @@
       ]
     },
     "breakCircularDependency": true,
-    "dependsOn": [],
-    "thirdPartyAuth": false,
-    "userPoolGroups": false,
-    "adminQueries": false,
-    "triggers": {},
-    "hostedUI": false,
+    "dependsOn": [
+      {
+        "category": "function",
+        "resourceName": "porteriaaapp1f5c1b511f5c1b51PreSignup",
+        "triggerProvider": "Cognito",
+        "attributes": [
+          "Arn",
+          "Name"
+        ]
+      }
+    ],
     "authProviders": [],
     "parentStack": {
       "Ref": "AWS::StackId"
     },
-    "permissions": []
+    "permissions": [],
+    "authTriggerConnections": "[\n  {\n    \"triggerType\": \"PreSignUp\",\n    \"lambdaFunctionName\": \"porteriaaapp1f5c1b511f5c1b51PreSignup\"\n  }\n]"
   }
 }

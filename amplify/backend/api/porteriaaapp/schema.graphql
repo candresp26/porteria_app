@@ -1,3 +1,4 @@
+# Definición de Roles de Usuario
 enum Role {
   RESIDENT
   GUARD
@@ -5,56 +6,90 @@ enum Role {
   SUPER_ADMIN
 }
 
-# Habilitamos acceso PÚBLICO total para poder crear usuarios desde el Login
-type User @model @auth(rules: [
-  { allow: public }
-]) {
-  id: ID!
-  username: String! @index(name: "byUsername", queryField: "userByUsername")
-  password: String!
-  isFirstLogin: Boolean!
-  role: Role!
-  name: String
-  
-  # Relaciones
-  apartmentID: ID @index(name: "byApartment")
-  apartment: Apartment @belongsTo(fields: ["apartmentID"])
-  packages: [Package] @hasMany(indexName: "byRecipient", fields: ["id"])
-}
-
-# Habilitamos acceso PÚBLICO para que el seeder pueda crear apartamentos
-type Apartment @model @auth(rules: [
-  { allow: public }
-]) {
-  id: ID!
-  tower: String!
-  unitNumber: String!
-  accessCode: String!
-  residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
-}
-
-type Package @model @auth(rules: [{ allow: public }]) {
-  id: ID!
-  courier: String!
-  photoKey: String
-  receivedAt: AWSDateTime!
-  deliveredAt: AWSDateTime
-  recipientID: ID! @index(name: "byRecipient")
-  recipient: User @belongsTo(fields: ["recipientID"])
-  status: PackageStatus!
-  
-  # 👇 NUEVOS CAMPOS PARA LA ENTREGA
-  signatureKey: String
-  deliveryMethod: DeliveryMethod # Enum nuevo
-}
-
+# Métodos de Entrega de Paquetes
 enum DeliveryMethod {
   QR_WITH_SIGNATURE
   MANUAL_WITH_SIGNATURE
   MANUAL_NO_SIGNATURE
 }
 
+# Estado del Paquete
 enum PackageStatus {
   IN_WAREHOUSE
   DELIVERED
+}
+
+# --------------------------------------------------------
+# MODELO DE USUARIO
+# --------------------------------------------------------
+type User @model @auth(rules: [
+  # 1. El dueño puede hacer TODO con su cuenta
+  { allow: owner },
+  
+  # 2. (NUEVO) Cualquier vecino logueado puede LEER los datos de otros (para ver quién vive en su torre)
+  { allow: private, operations: [read] },
+  
+  # 3. Mantenemos público solo para Crear (Registro) y Leer (Validaciones iniciales)
+  { allow: public, operations: [create, read] }
+]) {
+  id: ID!
+  username: String! @index(name: "byUsername", queryField: "userByUsername")
+  password: String
+  isFirstLogin: Boolean!
+  role: Role!
+  name: String
+  
+  email: String
+  tower: String  
+  unit: String   
+
+  apartmentID: ID @index(name: "byApartment")
+  apartment: Apartment @belongsTo(fields: ["apartmentID"])
+  packages: [Package] @hasMany(indexName: "byRecipient", fields: ["id"])
+  pinCode: String
+}
+
+# --------------------------------------------------------
+# MODELO DE APARTAMENTO
+# --------------------------------------------------------
+type Apartment @model @auth(rules: [
+  # Permitimos que vecinos logueados lean info de aptos
+  { allow: private, operations: [read] },
+  # Permitimos público para el registro inicial
+  { allow: public, operations: [read] }
+]) {
+  id: ID!
+  tower: String!
+  unitNumber: String!
+  accessCode: String        
+  codeExpiresAt: AWSDateTime 
+  maxResidents: Int! @default(value: "3")
+  residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
+}
+
+# (El resto de modelos como Package pueden quedar igual o agregar { allow: private } si es necesario)
+# ... resto del archivo igual ...
+
+# --------------------------------------------------------
+# MODELO DE PAQUETE
+# --------------------------------------------------------
+type Package @model @auth(rules: [{ allow: private },
+  { allow: public }]) {
+  id: ID!
+  courier: String!
+  photoKey: String
+  receivedAt: AWSDateTime!
+  deliveredAt: AWSDateTime
+  
+  # Relación con el Destinatario
+  recipientID: ID! @index(name: "byRecipient")
+  recipient: User @belongsTo(fields: ["recipientID"])
+  
+  status: PackageStatus!
+  
+  # Campos adicionales de entrega
+  signatureKey: String
+  deliveryMethod: DeliveryMethod
+  receivedBy: String   
+  deliveredBy: String  
 }

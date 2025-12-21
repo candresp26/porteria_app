@@ -9,12 +9,10 @@
       "UnauthRoleName": "amplify-porteriaaapp-dev-fb3ce-unauthRole",
       "StackName": "amplify-porteriaaapp-dev-fb3ce",
       "StackId": "arn:aws:cloudformation:us-east-1:699305361178:stack/amplify-porteriaaapp-dev-fb3ce/e5a46260-cf0f-11f0-a253-125dabe8e3e7",
-      "AmplifyAppId": "d2e4aybzgpevwo"
+      "AmplifyAppId": "d2e4aybzgpevwo",
+      "AuthTriggerTemplateURL": "https://s3.amazonaws.com/amplify-porteriaaapp-dev-fb3ce-deployment/amplify-cfn-templates/auth/auth-trigger-cloudformation-template.json"
     },
     "categories": {
-      "auth": {
-        "porteriaaappc66d159b": {}
-      },
       "api": {
         "porteriaaapp": {}
       },
@@ -24,8 +22,15 @@
       "function": {
         "notifyResidents": {
           "deploymentBucketName": "amplify-porteriaaapp-dev-fb3ce-deployment",
-          "s3Key": "amplify-builds/notifyResidents-43357171687362487752-build.zip"
+          "s3Key": "amplify-builds/notifyResidents-6468566e4d6664474b61-build.zip"
+        },
+        "porteriaaapp1f5c1b511f5c1b51PreSignup": {
+          "deploymentBucketName": "amplify-porteriaaapp-dev-fb3ce-deployment",
+          "s3Key": "amplify-builds/porteriaaapp1f5c1b511f5c1b51PreSignup-624a57624a3665433738-build.zip"
         }
+      },
+      "auth": {
+        "porteriaaapp1f5c1b511f5c1b51": {}
       }
     }
   }

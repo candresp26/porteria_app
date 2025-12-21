@@ -31,6 +31,8 @@ class Apartment extends amplify_core.Model {
   final String? _tower;
   final String? _unitNumber;
   final String? _accessCode;
+  final amplify_core.TemporalDateTime? _codeExpiresAt;
+  final int? _maxResidents;
   final List<User>? _residents;
   final amplify_core.TemporalDateTime? _createdAt;
   final amplify_core.TemporalDateTime? _updatedAt;
@@ -74,9 +76,17 @@ class Apartment extends amplify_core.Model {
     }
   }
   
-  String get accessCode {
+  String? get accessCode {
+    return _accessCode;
+  }
+  
+  amplify_core.TemporalDateTime? get codeExpiresAt {
+    return _codeExpiresAt;
+  }
+  
+  int get maxResidents {
     try {
-      return _accessCode!;
+      return _maxResidents!;
     } catch(e) {
       throw amplify_core.AmplifyCodeGenModelException(
           amplify_core.AmplifyExceptionMessages.codeGenRequiredFieldForceCastExceptionMessage,
@@ -99,14 +109,16 @@ class Apartment extends amplify_core.Model {
     return _updatedAt;
   }
   
-  const Apartment._internal({required this.id, required tower, required unitNumber, required accessCode, residents, createdAt, updatedAt}): _tower = tower, _unitNumber = unitNumber, _accessCode = accessCode, _residents = residents, _createdAt = createdAt, _updatedAt = updatedAt;
+  const Apartment._internal({required this.id, required tower, required unitNumber, accessCode, codeExpiresAt, required maxResidents, residents, createdAt, updatedAt}): _tower = tower, _unitNumber = unitNumber, _accessCode = accessCode, _codeExpiresAt = codeExpiresAt, _maxResidents = maxResidents, _residents = residents, _createdAt = createdAt, _updatedAt = updatedAt;
   
-  factory Apartment({String? id, required String tower, required String unitNumber, required String accessCode, List<User>? residents}) {
+  factory Apartment({String? id, required String tower, required String unitNumber, String? accessCode, amplify_core.TemporalDateTime? codeExpiresAt, required int maxResidents, List<User>? residents}) {
     return Apartment._internal(
       id: id == null ? amplify_core.UUID.getUUID() : id,
       tower: tower,
       unitNumber: unitNumber,
       accessCode: accessCode,
+      codeExpiresAt: codeExpiresAt,
+      maxResidents: maxResidents,
       residents: residents != null ? List<User>.unmodifiable(residents) : residents);
   }
   
@@ -122,6 +134,8 @@ class Apartment extends amplify_core.Model {
       _tower == other._tower &&
       _unitNumber == other._unitNumber &&
       _accessCode == other._accessCode &&
+      _codeExpiresAt == other._codeExpiresAt &&
+      _maxResidents == other._maxResidents &&
       DeepCollectionEquality().equals(_residents, other._residents);
   }
   
@@ -137,6 +151,8 @@ class Apartment extends amplify_core.Model {
     buffer.write("tower=" + "$_tower" + ", ");
     buffer.write("unitNumber=" + "$_unitNumber" + ", ");
     buffer.write("accessCode=" + "$_accessCode" + ", ");
+    buffer.write("codeExpiresAt=" + (_codeExpiresAt != null ? _codeExpiresAt!.format() : "null") + ", ");
+    buffer.write("maxResidents=" + (_maxResidents != null ? _maxResidents!.toString() : "null") + ", ");
     buffer.write("createdAt=" + (_createdAt != null ? _createdAt!.format() : "null") + ", ");
     buffer.write("updatedAt=" + (_updatedAt != null ? _updatedAt!.format() : "null"));
     buffer.write("}");
@@ -144,19 +160,23 @@ class Apartment extends amplify_core.Model {
     return buffer.toString();
   }
   
-  Apartment copyWith({String? tower, String? unitNumber, String? accessCode, List<User>? residents}) {
+  Apartment copyWith({String? tower, String? unitNumber, String? accessCode, amplify_core.TemporalDateTime? codeExpiresAt, int? maxResidents, List<User>? residents}) {
     return Apartment._internal(
       id: id,
       tower: tower ?? this.tower,
       unitNumber: unitNumber ?? this.unitNumber,
       accessCode: accessCode ?? this.accessCode,
+      codeExpiresAt: codeExpiresAt ?? this.codeExpiresAt,
+      maxResidents: maxResidents ?? this.maxResidents,
       residents: residents ?? this.residents);
   }
   
   Apartment copyWithModelFieldValues({
     ModelFieldValue<String>? tower,
     ModelFieldValue<String>? unitNumber,
-    ModelFieldValue<String>? accessCode,
+    ModelFieldValue<String?>? accessCode,
+    ModelFieldValue<amplify_core.TemporalDateTime?>? codeExpiresAt,
+    ModelFieldValue<int>? maxResidents,
     ModelFieldValue<List<User>?>? residents
   }) {
     return Apartment._internal(
@@ -164,6 +184,8 @@ class Apartment extends amplify_core.Model {
       tower: tower == null ? this.tower : tower.value,
       unitNumber: unitNumber == null ? this.unitNumber : unitNumber.value,
       accessCode: accessCode == null ? this.accessCode : accessCode.value,
+      codeExpiresAt: codeExpiresAt == null ? this.codeExpiresAt : codeExpiresAt.value,
+      maxResidents: maxResidents == null ? this.maxResidents : maxResidents.value,
       residents: residents == null ? this.residents : residents.value
     );
   }
@@ -173,6 +195,8 @@ class Apartment extends amplify_core.Model {
       _tower = json['tower'],
       _unitNumber = json['unitNumber'],
       _accessCode = json['accessCode'],
+      _codeExpiresAt = json['codeExpiresAt'] != null ? amplify_core.TemporalDateTime.fromString(json['codeExpiresAt']) : null,
+      _maxResidents = (json['maxResidents'] as num?)?.toInt(),
       _residents = json['residents']  is Map
         ? (json['residents']['items'] is List
           ? (json['residents']['items'] as List)
@@ -190,7 +214,7 @@ class Apartment extends amplify_core.Model {
       _updatedAt = json['updatedAt'] != null ? amplify_core.TemporalDateTime.fromString(json['updatedAt']) : null;
   
   Map<String, dynamic> toJson() => {
-    'id': id, 'tower': _tower, 'unitNumber': _unitNumber, 'accessCode': _accessCode, 'residents': _residents?.map((User? e) => e?.toJson()).toList(), 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
+    'id': id, 'tower': _tower, 'unitNumber': _unitNumber, 'accessCode': _accessCode, 'codeExpiresAt': _codeExpiresAt?.format(), 'maxResidents': _maxResidents, 'residents': _residents?.map((User? e) => e?.toJson()).toList(), 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
   };
   
   Map<String, Object?> toMap() => {
@@ -198,6 +222,8 @@ class Apartment extends amplify_core.Model {
     'tower': _tower,
     'unitNumber': _unitNumber,
     'accessCode': _accessCode,
+    'codeExpiresAt': _codeExpiresAt,
+    'maxResidents': _maxResidents,
     'residents': _residents,
     'createdAt': _createdAt,
     'updatedAt': _updatedAt
@@ -208,6 +234,8 @@ class Apartment extends amplify_core.Model {
   static final TOWER = amplify_core.QueryField(fieldName: "tower");
   static final UNITNUMBER = amplify_core.QueryField(fieldName: "unitNumber");
   static final ACCESSCODE = amplify_core.QueryField(fieldName: "accessCode");
+  static final CODEEXPIRESAT = amplify_core.QueryField(fieldName: "codeExpiresAt");
+  static final MAXRESIDENTS = amplify_core.QueryField(fieldName: "maxResidents");
   static final RESIDENTS = amplify_core.QueryField(
     fieldName: "residents",
     fieldType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.model, ofModelName: 'User'));
@@ -242,8 +270,20 @@ class Apartment extends amplify_core.Model {
     
     modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
       key: Apartment.ACCESSCODE,
-      isRequired: true,
+      isRequired: false,
       ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: Apartment.CODEEXPIRESAT,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.dateTime)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: Apartment.MAXRESIDENTS,
+      isRequired: true,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.int)
     ));
     
     modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.hasMany(

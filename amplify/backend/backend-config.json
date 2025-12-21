@@ -7,7 +7,7 @@
             "UserPoolId"
           ],
           "category": "auth",
-          "resourceName": "porteriaaappc66d159b"
+          "resourceName": "porteriaaapp1f5c1b511f5c1b51"
         }
       ],
       "output": {
@@ -15,9 +15,9 @@
           "additionalAuthenticationProviders": [
             {
               "apiKeyConfig": {
-                "apiKeyExpirationDate": "2026-12-03T01:45:01.501Z",
+                "apiKeyExpirationDate": "2026-12-19T22:40:28.631Z",
                 "apiKeyExpirationDays": 365,
-                "description": "public_read"
+                "description": ""
               },
               "authenticationType": "API_KEY"
             }
@@ -25,7 +25,7 @@
           "defaultAuthentication": {
             "authenticationType": "AMAZON_COGNITO_USER_POOLS",
             "userPoolConfig": {
-              "userPoolId": "authporteriaaappc66d159b"
+              "userPoolId": "authporteriaaapp1f5c1b511f5c1b51"
             }
           }
         }
@@ -35,9 +35,19 @@
     }
   },
   "auth": {
-    "porteriaaappc66d159b": {
+    "porteriaaapp1f5c1b511f5c1b51": {
       "customAuth": false,
-      "dependsOn": [],
+      "dependsOn": [
+        {
+          "attributes": [
+            "Arn",
+            "Name"
+          ],
+          "category": "function",
+          "resourceName": "porteriaaapp1f5c1b511f5c1b51PreSignup",
+          "triggerProvider": "Cognito"
+        }
+      ],
       "frontendAuthConfig": {
         "mfaConfiguration": "OFF",
         "mfaTypes": [
@@ -48,12 +58,11 @@
           "passwordPolicyMinLength": 8
         },
         "signupAttributes": [
-          "EMAIL"
+          "EMAIL",
+          "NAME"
         ],
         "socialProviders": [],
-        "usernameAttributes": [
-          "EMAIL"
-        ],
+        "usernameAttributes": [],
         "verificationMechanisms": [
           "EMAIL"
         ]
@@ -64,6 +73,11 @@
   },
   "function": {
     "notifyResidents": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    },
+    "porteriaaapp1f5c1b511f5c1b51PreSignup": {
       "build": true,
       "providerPlugin": "awscloudformation",
       "service": "Lambda"
@@ -83,6 +97,22 @@
         {
           "category": "function",
           "resourceName": "notifyResidents"
+        }
+      ]
+    },
+    "AMPLIFY_function_porteriaaapp1f5c1b511f5c1b51PreSignup_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "porteriaaapp1f5c1b511f5c1b51PreSignup"
+        }
+      ]
+    },
+    "AMPLIFY_function_porteriaaapp1f5c1b511f5c1b51PreSignup_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "porteriaaapp1f5c1b511f5c1b51PreSignup"
         }
       ]
     }

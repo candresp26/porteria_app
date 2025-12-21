@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:amplify_api/amplify_api.dart';
+import 'package:amplify_api/amplify_api.dart'; // Aunque no se use directo aquí, a veces es necesario por tipos
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/ModelProvider.dart';
+
 import 'login_screen.dart';
-import 'guard_screen.dart'; // Pantalla de Inventario
-import 'receive_package_screen.dart'; // 🔥 IMPORTANTE: Pantalla de Registro
-import 'qr_scan_screen.dart'; // Pantalla de Escáner
-import 'delivery_history_screen.dart'; // Pantalla de Historial
+import 'guard_screen.dart'; // Inventario
+import 'receive_package_screen.dart'; // Registro
+import 'qr_scan_screen.dart'; // Escáner
+import 'delivery_history_screen.dart'; // Historial
+
+// 👇 IMPORTANTE: Importamos la pantalla de Detalle/Firma
+import 'package_detail_screen.dart'; 
 
 class GuardHomeScreen extends StatefulWidget {
   const GuardHomeScreen({super.key});
@@ -17,12 +20,33 @@ class GuardHomeScreen extends StatefulWidget {
 }
 
 class _GuardHomeScreenState extends State<GuardHomeScreen> {
-  bool _isProcessing = false;
+  
+  // Eliminamos _isProcessing porque la navegación es inmediata
 
-  Future<void> _signOut() async {
-    await Amplify.Auth.signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+// En guard_home_screen.dart
+
+Future<void> _signOut() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // 1. Salvar biometría
+      bool biometricEnabled = prefs.getBool('useBiometrics') ?? false;
+      String? savedEmail = prefs.getString('email');
+
+      // 2. Cerrar sesión en AWS y Borrar Storage Local
+      await Amplify.Auth.signOut();
+      await prefs.clear();
+
+      // 3. Restaurar biometría
+      if (biometricEnabled) {
+        await prefs.setBool('useBiometrics', true);
+        if (savedEmail != null) await prefs.setString('email', savedEmail);
+      }
+
+    } catch (e) {
+      print("Error al salir: $e");
+    }
+    
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -30,70 +54,32 @@ class _GuardHomeScreenState extends State<GuardHomeScreen> {
         (route) => false,
       );
     }
-  }
+}
 
-  // Lógica del QR (Igual que antes)
+  // 🔥 Lógica del QR ACTUALIZADA
   Future<void> _handleQRScan() async {
+    // 1. Abrimos la cámara para escanear
     final String? scannedId = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const QRScanScreen()),
     );
 
+    // Si canceló o no leyó nada, no hacemos nada
     if (scannedId == null) return;
 
-    setState(() => _isProcessing = true);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("🔍 Procesando entrega..."), duration: Duration(seconds: 1)),
-      );
-    }
+    if (!mounted) return;
 
-    try {
-      final requestGet = ModelQueries.get(
-        Package.classType, 
-        PackageModelIdentifier(id: scannedId),
-        authorizationMode: APIAuthorizationType.apiKey
-      );
-      final responseGet = await Amplify.API.query(request: requestGet).response;
-      final pkg = responseGet.data;
-
-      if (pkg == null) throw Exception("Paquete no encontrado.");
-      if (pkg.status == PackageStatus.DELIVERED) throw Exception("¡Paquete ya entregado!");
-
-      final updatedPkg = pkg.copyWith(status: PackageStatus.DELIVERED);
-
-      final requestUpdate = ModelMutations.update(updatedPkg, authorizationMode: APIAuthorizationType.apiKey);
-      final responseUpdate = await Amplify.API.mutate(request: requestUpdate).response;
-
-      if (responseUpdate.hasErrors) throw Exception(responseUpdate.errors.first.message);
-
-      if (mounted) _showSuccessDialog(pkg);
-
-    } catch (e) {
-      if (mounted) _showErrorDialog(e.toString());
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
-  }
-
-  void _showSuccessDialog(Package pkg) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.green[50],
-        title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 10), Text("¡Entrega Exitosa!")]),
-        content: Text("Destinatario: ${pkg.recipient?.name ?? 'Vecino'}\nEmpresa: ${pkg.courier}"),
-        actions: [ElevatedButton(onPressed: () => Navigator.pop(ctx), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), child: const Text("Aceptar"))],
+    // 2. EN LUGAR DE ENTREGAR DE UNA VEZ, NAVEGAMOS AL DETALLE
+    // Le pasamos el ID escaneado a la pantalla híbrida que creamos
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PackageDetailScreen(packageId: scannedId),
       ),
-    );
-  }
-
-  void _showErrorDialog(String error) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(title: const Text("Error"), content: Text(error.replaceAll("Exception: ", "")), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cerrar"))]),
-    );
+    ).then((value) {
+      // Opcional: Si quieres hacer algo cuando regrese (ej. actualizar un contador), hazlo aquí
+      print("Regresó de la pantalla de firma");
+    });
   }
 
   @override
@@ -101,7 +87,7 @@ class _GuardHomeScreenState extends State<GuardHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Menú Portería"),
-        backgroundColor: Colors.indigo,
+        backgroundColor: const Color(0xFF0F172A), // Azul oscuro corporativo
         foregroundColor: Colors.white,
         actions: [IconButton(icon: const Icon(Icons.exit_to_app), onPressed: _signOut)],
       ),
@@ -111,11 +97,11 @@ class _GuardHomeScreenState extends State<GuardHomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // BOTÓN 1: REGISTRAR NUEVO (EL QUE FALTABA) 🔥
+            // BOTÓN 1: REGISTRAR NUEVO
             _MenuButton(
               icon: Icons.add_box,
               label: "REGISTRAR NUEVO PAQUETE",
-              color: Colors.indigo, // Azul oscuro principal
+              color: const Color(0xFF0F172A), 
               onTap: () {
                 Navigator.push(
                   context,
@@ -126,11 +112,11 @@ class _GuardHomeScreenState extends State<GuardHomeScreen> {
 
             const SizedBox(height: 20),
 
-            // BOTÓN 2: INVENTARIO (VER PENDIENTES)
+            // BOTÓN 2: INVENTARIO
             _MenuButton(
               icon: Icons.inventory,
               label: "VER INVENTARIO PENDIENTE",
-              color: Colors.blue,
+              color: Colors.blue[700]!,
               onTap: () {
                 Navigator.push(
                   context,
@@ -141,12 +127,12 @@ class _GuardHomeScreenState extends State<GuardHomeScreen> {
             
             const SizedBox(height: 20),
 
-            // BOTÓN 3: LEER QR
+            // BOTÓN 3: LEER QR (Ahora va a la firma)
             _MenuButton(
               icon: Icons.qr_code_scanner,
               label: "LEER QR DE ENTREGA",
               color: Colors.orange[800]!,
-              onTap: _isProcessing ? null : _handleQRScan,
+              onTap: _handleQRScan, // Llamamos a la nueva función simple
             ),
 
             const SizedBox(height: 20),
@@ -155,11 +141,11 @@ class _GuardHomeScreenState extends State<GuardHomeScreen> {
             _MenuButton(
               icon: Icons.history,
               label: "HISTORIAL ENTREGAS",
-              color: Colors.green,
+              color: Colors.green[700]!,
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const DeliveryHistoryScreen()),
+                  MaterialPageRoute(builder: (context) => DeliveryHistoryScreen()),
                 );
               },
             ),
