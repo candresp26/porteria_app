@@ -8,25 +8,32 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Reparar entorno iOS (Fix Windows origin)
+      - name: Reparar entorno iOS
         script: |
-          # 1. Bajamos las librerías de Dart
+          rm -rf ios/Podfile # Limpiamos por si acaso
           flutter pub get
-          
-          # 2. EL TRUCO: Este comando detecta que faltan archivos de iOS (como el Podfile)
-          # y los genera automáticamente sin borrar tu código.
           flutter create . --platforms ios
       
-      - name: Construir IPA sin firmar
+      - name: Construir y Empaquetar
         script: |
-          # 3. Ahora que ya existe el entorno, el build correrá "pod install" solito
+          # 1. Construir la app
           flutter build ios --release --no-codesign
           
-          # 4. Empaquetamos manualmente el IPA
-          cd build/ios/iphoneos
-          mkdir Payload
-          mv Runner.app Payload/
-          zip -r release_unsigned.ipa Payload
+          # 2. Crear una carpeta explicita para el resultado
+          mkdir -p output/Payload
+          
+          # 3. Buscar la Runner.app donde sea que esté y copiarla a nuestra carpeta
+          APP_PATH=$(find build -name "Runner.app" | head -n 1)
+          echo "Copiando app desde: $APP_PATH"
+          cp -r "$APP_PATH" output/Payload/
+          
+          # 4. Crear el IPA dentro de la carpeta output
+          cd output
+          zip -r UrbianApp.ipa Payload
+          
+          # 5. Confirmación visual (para que veas en el log si se creó)
+          echo "¡IPA Creado!"
+          ls -l UrbianApp.ipa
     
     artifacts:
-      - build/ios/iphoneos/release_unsigned.ipa
+      - output/*.ipa
