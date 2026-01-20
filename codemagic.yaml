@@ -1,0 +1,29 @@
+workflows:
+  ios-unsigned-build:
+    name: iOS Build Sin Firmar (Para Sideloadly)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Instalar dependencias
+        script: |
+          flutter packages pub get
+          find . -name "Podfile" -exec dir {} \;
+          cd ios && pod install && cd ..
+      
+      - name: Construir IPA sin firmar (Hack)
+        script: |
+          # 1. Construimos la app solo como binario .app (evita error de firma)
+          flutter build ios --release --no-codesign
+          
+          # 2. Convertimos manualmente la carpeta .app en un archivo .ipa
+          cd build/ios/iphoneos
+          mkdir Payload
+          mv Runner.app Payload/
+          zip -r release_unsigned.ipa Payload
+    
+    artifacts:
+      - build/ios/iphoneos/release_unsigned.ipa
