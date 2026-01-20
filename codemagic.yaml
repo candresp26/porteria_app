@@ -8,18 +8,21 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Instalar dependencias
+      - name: Reparar entorno iOS (Fix Windows origin)
         script: |
-          flutter packages pub get
-          find . -name "Podfile" -exec dir {} \;
-          cd ios && pod install && cd ..
+          # 1. Bajamos las librerías de Dart
+          flutter pub get
+          
+          # 2. EL TRUCO: Este comando detecta que faltan archivos de iOS (como el Podfile)
+          # y los genera automáticamente sin borrar tu código.
+          flutter create . --platforms ios
       
-      - name: Construir IPA sin firmar (Hack)
+      - name: Construir IPA sin firmar
         script: |
-          # 1. Construimos la app solo como binario .app (evita error de firma)
+          # 3. Ahora que ya existe el entorno, el build correrá "pod install" solito
           flutter build ios --release --no-codesign
           
-          # 2. Convertimos manualmente la carpeta .app en un archivo .ipa
+          # 4. Empaquetamos manualmente el IPA
           cd build/ios/iphoneos
           mkdir Payload
           mv Runner.app Payload/
