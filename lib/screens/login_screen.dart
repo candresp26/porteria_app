@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ModelProvider.dart'; 
 import 'guard_home_screen.dart';
 import 'resident_home_screen.dart'; 
-import 'sign_up_screen.dart'; 
+import 'sign_up_screen.dart';
+// 👇 1. IMPORTAMOS LA NUEVA PANTALLA DE ADMIN
+import 'admin_dashboard_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,16 +44,19 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // 👇 2. AQUÍ ESTÁ EL POLICÍA DE TRÁFICO (ACTUALIZADO)
   void _navigateBasedOnRole(String role) {
-    if (role == 'GUARD') {
+    if (role == 'ADMIN') {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminDashboardScreen()));
+    } else if (role == 'GUARD') {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const GuardHomeScreen()));
     } else {
+      // Por defecto, cualquier otro rol va a Residentes
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ResidentHomeScreen()));
     }
   }
 
 // 🔥 LÓGICA DE LOGIN MANUAL (Con Fix de sesión fantasma + Guardado de Credenciales)
-// 🔥 LÓGICA DE LOGIN MANUAL (VERSIÓN DEBUG)
   Future<void> _loginManual() async {
     final usernameInput = _userController.text.trim();
     final passwordInput = _passController.text.trim();
@@ -81,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (e) {
       
       // FIX DE SESIÓN FANTASMA MEJORADO
-      // Buscamos cualquier error que sugiera que ya hay sesión
       if (e.message.contains('already signed in') || 
           e.message.contains('current user')) {
         
@@ -96,16 +100,13 @@ class _LoginScreenState extends State<LoginScreen> {
         return; 
       }
 
-      // 👇👇 AQUÍ EL CAMBIO: MOSTRAR EL ERROR REAL 👇👇
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            // Mostramos el mensaje crudo de AWS para saber qué pasa
             content: Text("AWS Error: ${e.message}"), 
             duration: const Duration(seconds: 5),
             backgroundColor: Colors.red));
       }
     } catch (e) {
-      // Errores que no son de Auth (ej. Internet)
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text("Error General: $e")));
@@ -117,11 +118,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _fetchUserDataAndNavigate(String username) async {
     try {
+      // Buscamos al usuario en DynamoDB
       final baseRequest = ModelQueries.list(
         User.classType,
         where: User.USERNAME.eq(username),
       );
 
+      // Usamos API Key (Public) para leer al usuario y saber quién es
       final request = GraphQLRequest<PaginatedResult<User>>(
         document: baseRequest.document,
         variables: baseRequest.variables,
@@ -142,18 +145,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (foundUser != null) {
         final prefs = await SharedPreferences.getInstance();
-        String roleString = (foundUser.role == Role.GUARD || foundUser.role == Role.ADMIN) ? 'GUARD' : 'RESIDENT';
+        
+        // 👇 3. CLASIFICACIÓN EXACTA DE ROLES
+        String roleString = 'RESIDENT'; // Valor por defecto
+        
+        if (foundUser.role == Role.ADMIN) {
+          roleString = 'ADMIN';
+        } else if (foundUser.role == Role.GUARD) {
+          roleString = 'GUARD';
+        } 
+        // Si es RESIDENT, se queda con el valor por defecto
 
         // Guardamos datos persistentes
         await prefs.setString('userId', foundUser.id);
         await prefs.setString('username', foundUser.name ?? "Usuario");
-        await prefs.setString('email', username); // Guardamos el correo/usuario
+        await prefs.setString('email', username);
         await prefs.setString('role', roleString);
         await prefs.setString('tower', foundUser.tower ?? ''); 
         await prefs.setString('unit', foundUser.unit ?? '');
+        // En login_screen.dart
+        await prefs.setString('name', foundUser.name ?? "Admin"); // <--- ESTA ES LA CLAVE
         
-        // ACTIVAMOS LA BANDERA DE BIOMETRÍA (Si entró exitosamente)
-        // Esto asegura que al salir, el Logout sepa que debe preservar la configuración
+        // ACTIVAMOS LA BANDERA DE BIOMETRÍA
         await prefs.setBool('useBiometrics', true);
 
         if(mounted) _navigateBasedOnRole(roleString);
@@ -163,16 +176,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-
-
   // =========================================================
   // 🖐️ LÓGICA BIOMÉTRICA MEJORADA
   // =========================================================
   Future<void> _authenticate() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // 1. Verificamos si tenemos credenciales guardadas para hacer el login
-    final String? storedUser = prefs.getString('email'); // O username
+    final String? storedUser = prefs.getString('email'); 
     final String? storedPass = prefs.getString('cachedPass');
 
     if (storedUser == null || storedPass == null) {
@@ -200,15 +210,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (authenticated) {
-      // SI LA HUELLA PASA, HACEMOS LOGIN REAL
-      // Esto soluciona el problema de "Token Expirado" o "Sesión inválida"
-      // Llenamos los controladores y llamamos al login manual (que ya maneja la sesión fantasma)
       setState(() {
         _userController.text = storedUser;
         _passController.text = storedPass;
       });
       
-      _loginManual(); // Reutilizamos la lógica robusta
+      _loginManual(); 
     }
   }
 

@@ -9,6 +9,8 @@ import 'receive_package_screen.dart'; // Registro
 import 'qr_scan_screen.dart'; // Escáner
 import 'delivery_history_screen.dart'; // Historial
 
+import 'receive_package_screen.dart'; 
+
 // 👇 IMPORTANTE: Importamos la pantalla de Detalle/Firma
 import 'package_detail_screen.dart'; 
 
@@ -105,7 +107,7 @@ Future<void> _signOut() async {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ReceivePackageScreen()),
+                  MaterialPageRoute(builder: (context) => ReceivePackageScreen()),
                 );
               },
             ),

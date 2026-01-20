@@ -31,6 +31,7 @@ class Package extends amplify_core.Model {
   final String? _photoKey;
   final amplify_core.TemporalDateTime? _receivedAt;
   final amplify_core.TemporalDateTime? _deliveredAt;
+  final String? _apartmentUnit;
   final User? _recipient;
   final PackageStatus? _status;
   final String? _signatureKey;
@@ -87,6 +88,10 @@ class Package extends amplify_core.Model {
     return _deliveredAt;
   }
   
+  String? get apartmentUnit {
+    return _apartmentUnit;
+  }
+  
   User? get recipient {
     return _recipient;
   }
@@ -128,15 +133,16 @@ class Package extends amplify_core.Model {
     return _updatedAt;
   }
   
-  const Package._internal({required this.id, required courier, photoKey, required receivedAt, deliveredAt, recipient, required status, signatureKey, deliveryMethod, receivedBy, deliveredBy, createdAt, updatedAt}): _courier = courier, _photoKey = photoKey, _receivedAt = receivedAt, _deliveredAt = deliveredAt, _recipient = recipient, _status = status, _signatureKey = signatureKey, _deliveryMethod = deliveryMethod, _receivedBy = receivedBy, _deliveredBy = deliveredBy, _createdAt = createdAt, _updatedAt = updatedAt;
+  const Package._internal({required this.id, required courier, photoKey, required receivedAt, deliveredAt, apartmentUnit, recipient, required status, signatureKey, deliveryMethod, receivedBy, deliveredBy, createdAt, updatedAt}): _courier = courier, _photoKey = photoKey, _receivedAt = receivedAt, _deliveredAt = deliveredAt, _apartmentUnit = apartmentUnit, _recipient = recipient, _status = status, _signatureKey = signatureKey, _deliveryMethod = deliveryMethod, _receivedBy = receivedBy, _deliveredBy = deliveredBy, _createdAt = createdAt, _updatedAt = updatedAt;
   
-  factory Package({String? id, required String courier, String? photoKey, required amplify_core.TemporalDateTime receivedAt, amplify_core.TemporalDateTime? deliveredAt, User? recipient, required PackageStatus status, String? signatureKey, DeliveryMethod? deliveryMethod, String? receivedBy, String? deliveredBy}) {
+  factory Package({String? id, required String courier, String? photoKey, required amplify_core.TemporalDateTime receivedAt, amplify_core.TemporalDateTime? deliveredAt, String? apartmentUnit, User? recipient, required PackageStatus status, String? signatureKey, DeliveryMethod? deliveryMethod, String? receivedBy, String? deliveredBy}) {
     return Package._internal(
       id: id == null ? amplify_core.UUID.getUUID() : id,
       courier: courier,
       photoKey: photoKey,
       receivedAt: receivedAt,
       deliveredAt: deliveredAt,
+      apartmentUnit: apartmentUnit,
       recipient: recipient,
       status: status,
       signatureKey: signatureKey,
@@ -158,6 +164,7 @@ class Package extends amplify_core.Model {
       _photoKey == other._photoKey &&
       _receivedAt == other._receivedAt &&
       _deliveredAt == other._deliveredAt &&
+      _apartmentUnit == other._apartmentUnit &&
       _recipient == other._recipient &&
       _status == other._status &&
       _signatureKey == other._signatureKey &&
@@ -179,6 +186,7 @@ class Package extends amplify_core.Model {
     buffer.write("photoKey=" + "$_photoKey" + ", ");
     buffer.write("receivedAt=" + (_receivedAt != null ? _receivedAt!.format() : "null") + ", ");
     buffer.write("deliveredAt=" + (_deliveredAt != null ? _deliveredAt!.format() : "null") + ", ");
+    buffer.write("apartmentUnit=" + "$_apartmentUnit" + ", ");
     buffer.write("recipient=" + (_recipient != null ? _recipient!.toString() : "null") + ", ");
     buffer.write("status=" + (_status != null ? amplify_core.enumToString(_status)! : "null") + ", ");
     buffer.write("signatureKey=" + "$_signatureKey" + ", ");
@@ -192,13 +200,14 @@ class Package extends amplify_core.Model {
     return buffer.toString();
   }
   
-  Package copyWith({String? courier, String? photoKey, amplify_core.TemporalDateTime? receivedAt, amplify_core.TemporalDateTime? deliveredAt, User? recipient, PackageStatus? status, String? signatureKey, DeliveryMethod? deliveryMethod, String? receivedBy, String? deliveredBy}) {
+  Package copyWith({String? courier, String? photoKey, amplify_core.TemporalDateTime? receivedAt, amplify_core.TemporalDateTime? deliveredAt, String? apartmentUnit, User? recipient, PackageStatus? status, String? signatureKey, DeliveryMethod? deliveryMethod, String? receivedBy, String? deliveredBy}) {
     return Package._internal(
       id: id,
       courier: courier ?? this.courier,
       photoKey: photoKey ?? this.photoKey,
       receivedAt: receivedAt ?? this.receivedAt,
       deliveredAt: deliveredAt ?? this.deliveredAt,
+      apartmentUnit: apartmentUnit ?? this.apartmentUnit,
       recipient: recipient ?? this.recipient,
       status: status ?? this.status,
       signatureKey: signatureKey ?? this.signatureKey,
@@ -212,6 +221,7 @@ class Package extends amplify_core.Model {
     ModelFieldValue<String?>? photoKey,
     ModelFieldValue<amplify_core.TemporalDateTime>? receivedAt,
     ModelFieldValue<amplify_core.TemporalDateTime?>? deliveredAt,
+    ModelFieldValue<String?>? apartmentUnit,
     ModelFieldValue<User?>? recipient,
     ModelFieldValue<PackageStatus>? status,
     ModelFieldValue<String?>? signatureKey,
@@ -225,6 +235,7 @@ class Package extends amplify_core.Model {
       photoKey: photoKey == null ? this.photoKey : photoKey.value,
       receivedAt: receivedAt == null ? this.receivedAt : receivedAt.value,
       deliveredAt: deliveredAt == null ? this.deliveredAt : deliveredAt.value,
+      apartmentUnit: apartmentUnit == null ? this.apartmentUnit : apartmentUnit.value,
       recipient: recipient == null ? this.recipient : recipient.value,
       status: status == null ? this.status : status.value,
       signatureKey: signatureKey == null ? this.signatureKey : signatureKey.value,
@@ -240,6 +251,7 @@ class Package extends amplify_core.Model {
       _photoKey = json['photoKey'],
       _receivedAt = json['receivedAt'] != null ? amplify_core.TemporalDateTime.fromString(json['receivedAt']) : null,
       _deliveredAt = json['deliveredAt'] != null ? amplify_core.TemporalDateTime.fromString(json['deliveredAt']) : null,
+      _apartmentUnit = json['apartmentUnit'],
       _recipient = json['recipient'] != null
         ? json['recipient']['serializedData'] != null
           ? User.fromJson(new Map<String, dynamic>.from(json['recipient']['serializedData']))
@@ -254,7 +266,7 @@ class Package extends amplify_core.Model {
       _updatedAt = json['updatedAt'] != null ? amplify_core.TemporalDateTime.fromString(json['updatedAt']) : null;
   
   Map<String, dynamic> toJson() => {
-    'id': id, 'courier': _courier, 'photoKey': _photoKey, 'receivedAt': _receivedAt?.format(), 'deliveredAt': _deliveredAt?.format(), 'recipient': _recipient?.toJson(), 'status': amplify_core.enumToString(_status), 'signatureKey': _signatureKey, 'deliveryMethod': amplify_core.enumToString(_deliveryMethod), 'receivedBy': _receivedBy, 'deliveredBy': _deliveredBy, 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
+    'id': id, 'courier': _courier, 'photoKey': _photoKey, 'receivedAt': _receivedAt?.format(), 'deliveredAt': _deliveredAt?.format(), 'apartmentUnit': _apartmentUnit, 'recipient': _recipient?.toJson(), 'status': amplify_core.enumToString(_status), 'signatureKey': _signatureKey, 'deliveryMethod': amplify_core.enumToString(_deliveryMethod), 'receivedBy': _receivedBy, 'deliveredBy': _deliveredBy, 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
   };
   
   Map<String, Object?> toMap() => {
@@ -263,6 +275,7 @@ class Package extends amplify_core.Model {
     'photoKey': _photoKey,
     'receivedAt': _receivedAt,
     'deliveredAt': _deliveredAt,
+    'apartmentUnit': _apartmentUnit,
     'recipient': _recipient,
     'status': _status,
     'signatureKey': _signatureKey,
@@ -279,6 +292,7 @@ class Package extends amplify_core.Model {
   static final PHOTOKEY = amplify_core.QueryField(fieldName: "photoKey");
   static final RECEIVEDAT = amplify_core.QueryField(fieldName: "receivedAt");
   static final DELIVEREDAT = amplify_core.QueryField(fieldName: "deliveredAt");
+  static final APARTMENTUNIT = amplify_core.QueryField(fieldName: "apartmentUnit");
   static final RECIPIENT = amplify_core.QueryField(
     fieldName: "recipient",
     fieldType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.model, ofModelName: 'User'));
@@ -292,6 +306,14 @@ class Package extends amplify_core.Model {
     modelSchemaDefinition.pluralName = "Packages";
     
     modelSchemaDefinition.authRules = [
+      amplify_core.AuthRule(
+        authStrategy: amplify_core.AuthStrategy.PRIVATE,
+        operations: const [
+          amplify_core.ModelOperation.CREATE,
+          amplify_core.ModelOperation.UPDATE,
+          amplify_core.ModelOperation.DELETE,
+          amplify_core.ModelOperation.READ
+        ]),
       amplify_core.AuthRule(
         authStrategy: amplify_core.AuthStrategy.PUBLIC,
         operations: const [
@@ -330,6 +352,12 @@ class Package extends amplify_core.Model {
       key: Package.DELIVEREDAT,
       isRequired: false,
       ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.dateTime)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: Package.APARTMENTUNIT,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
     ));
     
     modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.belongsTo(

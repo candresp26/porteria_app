@@ -173,24 +173,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<void> _createUserInDB(String authUserId) async {
+Future<void> _createUserInDB(String authUserId) async {
+    print("🕵️ INICIO: Intentando guardar usuario en DynamoDB...");
+    
+    // 1. Crear objeto Usuario (Incluimos isActive por seguridad)
     final newUser = User(
       id: authUserId,
       username: _usernameController.text.trim(),
-      password: "na", 
       isFirstLogin: true,
       role: Role.RESIDENT,
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       tower: _selectedTower,
       unit: _selectedApartment!.unitNumber,
-      apartment: _selectedApartment, 
+      apartment: _selectedApartment,
+      isActive: true, // <--- NUEVO: Aseguramos que nazca activo
     );
 
-    final request = ModelMutations.create(newUser, authorizationMode: APIAuthorizationType.apiKey);
-    await Amplify.API.mutate(request: request).response;
-  }
+    // 2. Crear la petición
+    final request = ModelMutations.create(newUser);
 
+    // 3. Configurar autorización Pública (API Key)
+    final requestWithAuth = GraphQLRequest<User>(
+      document: request.document,
+      variables: request.variables,
+      modelType: request.modelType,
+      decodePath: request.decodePath,
+      authorizationMode: APIAuthorizationType.apiKey, // Forzamos llave pública
+    );
+
+    // 4. Enviar y VERIFICAR ERRORES
+    final response = await Amplify.API.mutate(request: requestWithAuth).response;
+
+    if (response.hasErrors) {
+      // AQUÍ ESTABA EL PROBLEMA ANTES: Ignorábamos los errores
+      final errorMsg = response.errors.first.message;
+      print("🔥 ERROR FATAL DYNAMODB: $errorMsg");
+      throw Exception("No se pudo guardar en base de datos: $errorMsg");
+    } else {
+      print("✅ ¡ÉXITO! Usuario guardado en DynamoDB.");
+    }
+  }
+  
   void _showConfirmationDialog() {
     final codeController = TextEditingController();
     showDialog(

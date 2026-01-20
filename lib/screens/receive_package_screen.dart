@@ -187,6 +187,7 @@ class _ReceivePackageScreenState extends State<ReceivePackageScreen> {
         receivedAt: TemporalDateTime.now(),
         photoKey: photoKey,
         receivedBy: guardName,
+        apartmentUnit: "${_selectedTower!} - ${_selectedApartment!.unitNumber}",
       );
 
       // 👇 CAMBIO FINAL: Usamos apiKey porque tu base de datos es pública

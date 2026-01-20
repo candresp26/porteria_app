@@ -1,4 +1,6 @@
-# Definición de Roles de Usuario
+# ========================================================
+# ENUMS (Reglas fijas)
+# ========================================================
 enum Role {
   RESIDENT
   GUARD
@@ -6,42 +8,65 @@ enum Role {
   SUPER_ADMIN
 }
 
-# Métodos de Entrega de Paquetes
 enum DeliveryMethod {
   QR_WITH_SIGNATURE
   MANUAL_WITH_SIGNATURE
   MANUAL_NO_SIGNATURE
 }
 
-# Estado del Paquete
 enum PackageStatus {
   IN_WAREHOUSE
   DELIVERED
 }
 
-# --------------------------------------------------------
-# MODELO DE USUARIO
-# --------------------------------------------------------
+# ========================================================
+# 1. CONFIGURACIÓN DEL EDIFICIO (TU MODELO DE NEGOCIO)
+# ========================================================
+type BuildingSettings @model @auth(rules: [{ allow: private }]) {
+  id: ID!
+  maxAdmins: Int! @default(value: "2")
+  maxGuards: Int! @default(value: "10")
+  currentAccessCode: String             # El código actual (ej: HOLA2025)
+  codeExpiresAt: AWSDateTime
+}
+
+# ========================================================
+# 2. AUDITORÍA (EL "VAR" DE LA APP)
+# ========================================================
+# Versión final corregida para el Logger del sistema.
+type AuditLog @model @auth(rules: [{ allow: private }]) {
+  id: ID!
+  action: String!      # Ej: "BLOQUEO_RESIDENTE", "CREAR_PORTERO" (Usamos String para flexibilidad)
+  actorName: String!   # El nombre del Admin que hizo la acción
+  targetName: String   # El nombre del afectado (ej: "Juan Perez")
+  details: String      # Info extra (ej: "Torre 1 Apto 202")
+  
+  # DynamoDB gestiona createdAt automáticamente, pero lo definimos para que Flutter lo lea.
+  createdAt: AWSDateTime
+}
+
+# ========================================================
+# 3. USUARIOS (CON SOFT DELETE)
+# ========================================================
 type User @model @auth(rules: [
-  # 1. El dueño puede hacer TODO con su cuenta
   { allow: owner },
-  
-  # 2. (NUEVO) Cualquier vecino logueado puede LEER los datos de otros (para ver quién vive en su torre)
-  { allow: private, operations: [read] },
-  
-  # 3. Mantenemos público solo para Crear (Registro) y Leer (Validaciones iniciales)
+  { allow: private, operations: [read, update] }, # Admins pueden actualizar
   { allow: public, operations: [create, read] }
 ]) {
   id: ID!
   username: String! @index(name: "byUsername", queryField: "userByUsername")
-  password: String
   isFirstLogin: Boolean!
   role: Role!
   name: String
   
+  # SOFT DELETE: Por defecto todos nacen activos (true).
+  isActive: Boolean! @default(value: "true") 
+
   email: String
   tower: String  
   unit: String   
+
+  isDevice: Boolean
 
   apartmentID: ID @index(name: "byApartment")
   apartment: Apartment @belongsTo(fields: ["apartmentID"])
@@ -49,47 +74,46 @@ type User @model @auth(rules: [
   pinCode: String
 }
 
-# --------------------------------------------------------
-# MODELO DE APARTAMENTO
-# --------------------------------------------------------
+# ========================================================
+# 4. APARTAMENTOS
+# ========================================================
 type Apartment @model @auth(rules: [
-  # Permitimos que vecinos logueados lean info de aptos
-  { allow: private, operations: [read] },
-  # Permitimos público para el registro inicial
+  # ✅ Permitir a usuarios logueados (Admin/Portero) hacer TODO (Leer, Crear, Editar, Borrar)
+  { allow: private, operations: [read, create, update, delete] },
+  # Permitir al público solo leer (opcional, por si acaso)
   { allow: public, operations: [read] }
-]) {
+]){
   id: ID!
   tower: String!
   unitNumber: String!
+  
   accessCode: String        
   codeExpiresAt: AWSDateTime 
   maxResidents: Int! @default(value: "3")
+  
   residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
 }
 
-# (El resto de modelos como Package pueden quedar igual o agregar { allow: private } si es necesario)
-# ... resto del archivo igual ...
-
-# --------------------------------------------------------
-# MODELO DE PAQUETE
-# --------------------------------------------------------
-type Package @model @auth(rules: [{ allow: private },
-  { allow: public }]) {
+# ========================================================
+# 5. PAQUETES
+# ========================================================
+type Package @model @auth(rules: [
+  { allow: private }, 
+  { allow: public }
+]) {
   id: ID!
   courier: String!
   photoKey: String
   receivedAt: AWSDateTime!
   deliveredAt: AWSDateTime
+  apartmentUnit: String
   
-  # Relación con el Destinatario
   recipientID: ID! @index(name: "byRecipient")
   recipient: User @belongsTo(fields: ["recipientID"])
   
   status: PackageStatus!
-  
-  # Campos adicionales de entrega
   signatureKey: String
   deliveryMethod: DeliveryMethod
-  receivedBy: String   
-  deliveredBy: String  
+  receivedBy: String    
+  deliveredBy: String   
 }
