@@ -5,6 +5,7 @@ import '../models/ModelProvider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import 'guard_screen.dart';
+import 'guard_home_screen.dart'; 
 
 class ChangePasswordScreen extends StatefulWidget {
   final User user;
@@ -102,7 +103,7 @@ Future<void> _updatePassword() async {
     if (user.role == Role.GUARD || user.role == Role.ADMIN) {
       Navigator.pushAndRemoveUntil(
         context, 
-        MaterialPageRoute(builder: (_) => const GuardScreen()),
+        MaterialPageRoute(builder: (_) => const GuardHomeScreen()), 
         (route) => false
       );
     } else {

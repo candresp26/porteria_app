@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-// 1. Importamos las librerías de AWS
 import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_api/amplify_api.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// 2. Importamos la configuración y los modelos generados
 import 'amplifyconfiguration.dart';
 import 'models/ModelProvider.dart';
-import 'screens/login_screen.dart'; 
+
+// ✅ IMPORTS CLAROS (Asegúrate de que las rutas coincidan con tus carpetas)
+import 'screens/login_screen.dart';
+import 'screens/guard_home_screen.dart';
+import 'screens/dashboard_screen.dart'; 
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +26,10 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _amplifyConfigured = false;
-  String _statusMessage = 'Iniciando conexión con AWS...';
+  bool _isLoading = true;
+  
+  // 🔴 CORRECCIÓN 1: Quitamos 'const' y dejamos un valor nulo inicial o instanciamos simple
+  Widget _startScreen = LoginScreen(); 
 
   @override
   void initState() {
@@ -32,36 +39,78 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _configureAmplify() async {
     try {
-      // A. Agregamos los plugins (Auth y API)
-      final auth = AmplifyAuthCognito();
-      final api = AmplifyAPI(options: APIPluginOptions(modelProvider: ModelProvider.instance));
-      await Amplify.addPlugins([auth, api]);
+      if (!Amplify.isConfigured) {
+        final api = AmplifyAPI(options: APIPluginOptions(modelProvider: ModelProvider.instance));
+        final auth = AmplifyAuthCognito();
+        final storage = AmplifyStorageS3();
+        
+        await Amplify.addPlugins([api, auth, storage]);
+        await Amplify.configure(amplifyconfig);
+      }
+      
+      await _checkSessionAndRole();
 
-      // B. Leemos la configuración de AWS
-      await Amplify.configure(amplifyconfig);
-
-      setState(() {
-        _amplifyConfigured = true;
-        _statusMessage = '✅ ¡Conectado a AWS exitosamente!';
-      });
-      safePrint('Amplify configurado correctamente');
-    } on Exception catch (e) {
-      setState(() {
-        _statusMessage = '❌ Error de conexión: $e';
-      });
-      safePrint('Error configurando Amplify: $e');
+    } catch (e) {
+      print('Error configurando Amplify: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-@override
+  Future<void> _checkSessionAndRole() async {
+    try {
+      final session = await Amplify.Auth.fetchAuthSession();
+      
+      if (session.isSignedIn) {
+        final prefs = await SharedPreferences.getInstance();
+        final role = prefs.getString('role');
+
+        print("🔍 Main: Sesión activa. Rol: $role");
+
+        if (role == 'GUARD') {
+           setState(() {
+             // 🔴 CORRECCIÓN 2: Sin 'const'
+             _startScreen = GuardHomeScreen();
+           });
+        } else if (role == 'RESIDENT' || role == 'ADMIN') { 
+           setState(() {
+             // 🔴 CORRECCIÓN 3: Sin 'const'
+             _startScreen = DashboardScreen(); 
+           });
+        } else {
+          setState(() {
+            _startScreen = LoginScreen();
+          });
+        }
+      } else {
+        setState(() {
+          _startScreen = LoginScreen();
+        });
+      }
+    } catch (e) {
+      print("Error sesión: $e");
+      setState(() {
+         _startScreen = LoginScreen();
+      });
+    } finally {
+      setState(() {
+        _amplifyConfigured = true;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, 
-      home: _amplifyConfigured
-          ? const LoginScreen() 
-          : const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
+      debugShowCheckedModeBanner: false,
+      title: 'Portería App',
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+        useMaterial3: true,
+      ),
+      home: _isLoading 
+        ? const Scaffold(body: Center(child: CircularProgressIndicator())) 
+        : _startScreen, 
     );
   }
 }

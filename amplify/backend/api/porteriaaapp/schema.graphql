@@ -1,3 +1,6 @@
+# ========================================================
+# ENUMS (Reglas fijas)
+# ========================================================
 enum Role {
   RESIDENT
   GUARD
@@ -5,51 +8,112 @@ enum Role {
   SUPER_ADMIN
 }
 
-type User @model @auth(rules: [
-  { allow: owner },
-  { allow: groups, groups: ["ADMIN", "GUARD"], operations: [read] },
-  { allow: public, operations: [create, read, update] } 
-]) {
-  id: ID!
-  username: String! @index(name: "byUsername", queryField: "userByUsername") 
-  password: String! 
-  isFirstLogin: Boolean! 
-  role: Role!
-  name: String
-  
-  # Relaciones
-  apartmentID: ID @index(name: "byApartment")
-  apartment: Apartment @belongsTo(fields: ["apartmentID"])
-  packages: [Package] @hasMany(indexName: "byRecipient", fields: ["id"])
-}
-
-type Apartment @model @auth(rules: [
-  { allow: groups, groups: ["ADMIN", "SUPER_ADMIN"] },
-  { allow: private, operations: [read] },
-  { allow: public, operations: [read] } 
-]) {
-  id: ID!
-  tower: String!
-  unitNumber: String!
-  accessCode: String! 
-  residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
-}
-
-type Package @model @auth(rules: [
-  { allow: groups, groups: ["GUARD", "ADMIN"] },
-  { allow: owner, operations: [read] },
-  { allow: public, operations: [create, read, update] } ]) {
-  id: ID!
-  courier: String!
-  photoKey: String
-  receivedAt: AWSDateTime!
-  deliveredAt: AWSDateTime
-  recipientID: ID! @index(name: "byRecipient")
-  recipient: User @belongsTo(fields: ["recipientID"])
-  status: PackageStatus!
+enum DeliveryMethod {
+  QR_WITH_SIGNATURE
+  MANUAL_WITH_SIGNATURE
+  MANUAL_NO_SIGNATURE
 }
 
 enum PackageStatus {
   IN_WAREHOUSE
   DELIVERED
+}
+
+# ========================================================
+# 1. CONFIGURACIÓN DEL EDIFICIO (TU MODELO DE NEGOCIO)
+# ========================================================
+type BuildingSettings @model @auth(rules: [{ allow: private }]) {
+  id: ID!
+  maxAdmins: Int! @default(value: "2")
+  maxGuards: Int! @default(value: "10")
+  currentAccessCode: String             # El código actual (ej: HOLA2025)
+  codeExpiresAt: AWSDateTime
+}
+
+# ========================================================
+# 2. AUDITORÍA (EL "VAR" DE LA APP)
+# ========================================================
+# Versión final corregida para el Logger del sistema.
+type AuditLog @model @auth(rules: [{ allow: private }]) {
+  id: ID!
+  action: String!      # Ej: "BLOQUEO_RESIDENTE", "CREAR_PORTERO" (Usamos String para flexibilidad)
+  actorName: String!   # El nombre del Admin que hizo la acción
+  targetName: String   # El nombre del afectado (ej: "Juan Perez")
+  details: String      # Info extra (ej: "Torre 1 Apto 202")
+  
+  # DynamoDB gestiona createdAt automáticamente, pero lo definimos para que Flutter lo lea.
+  createdAt: AWSDateTime
+}
+
+# ========================================================
+# 3. USUARIOS (CON SOFT DELETE)
+# ========================================================
+type User @model @auth(rules: [
+  { allow: owner },
+  { allow: private, operations: [read, update] }, # Admins pueden actualizar
+  { allow: public, operations: [create, read] }
+]) {
+  id: ID!
+  username: String! @index(name: "byUsername", queryField: "userByUsername")
+  isFirstLogin: Boolean!
+  role: Role!
+  name: String
+  
+  # SOFT DELETE: Por defecto todos nacen activos (true).
+  isActive: Boolean! @default(value: "true") 
+
+  email: String
+  tower: String  
+  unit: String   
+
+  isDevice: Boolean
+
+  apartmentID: ID @index(name: "byApartment")
+  apartment: Apartment @belongsTo(fields: ["apartmentID"])
+  packages: [Package] @hasMany(indexName: "byRecipient", fields: ["id"])
+  pinCode: String
+}
+
+# ========================================================
+# 4. APARTAMENTOS
+# ========================================================
+type Apartment @model @auth(rules: [
+  # ✅ Permitir a usuarios logueados (Admin/Portero) hacer TODO (Leer, Crear, Editar, Borrar)
+  { allow: private, operations: [read, create, update, delete] },
+  # Permitir al público solo leer (opcional, por si acaso)
+  { allow: public, operations: [read] }
+]){
+  id: ID!
+  tower: String!
+  unitNumber: String!
+  
+  accessCode: String        
+  codeExpiresAt: AWSDateTime 
+  maxResidents: Int! @default(value: "3")
+  
+  residents: [User] @hasMany(indexName: "byApartment", fields: ["id"])
+}
+
+# ========================================================
+# 5. PAQUETES
+# ========================================================
+type Package @model @auth(rules: [
+  { allow: private }, 
+  { allow: public }
+]) {
+  id: ID!
+  courier: String!
+  photoKey: String
+  receivedAt: AWSDateTime!
+  deliveredAt: AWSDateTime
+  apartmentUnit: String
+  
+  recipientID: ID! @index(name: "byRecipient")
+  recipient: User @belongsTo(fields: ["recipientID"])
+  
+  status: PackageStatus!
+  signatureKey: String
+  deliveryMethod: DeliveryMethod
+  receivedBy: String    
+  deliveredBy: String   
 }

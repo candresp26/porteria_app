@@ -21,10 +21,15 @@
 
 import 'package:amplify_core/amplify_core.dart' as amplify_core;
 import 'Apartment.dart';
+import 'AuditLog.dart';
+import 'BuildingSettings.dart';
 import 'Package.dart';
 import 'User.dart';
 
 export 'Apartment.dart';
+export 'AuditLog.dart';
+export 'BuildingSettings.dart';
+export 'DeliveryMethod.dart';
 export 'Package.dart';
 export 'PackageStatus.dart';
 export 'Role.dart';
@@ -32,9 +37,9 @@ export 'User.dart';
 
 class ModelProvider implements amplify_core.ModelProviderInterface {
   @override
-  String version = "00a484e917911f3073c5f4c1b656f240";
+  String version = "e705b2fcc6b32258707b38ce88a8b50c";
   @override
-  List<amplify_core.ModelSchema> modelSchemas = [Apartment.schema, Package.schema, User.schema];
+  List<amplify_core.ModelSchema> modelSchemas = [Apartment.schema, AuditLog.schema, BuildingSettings.schema, Package.schema, User.schema];
   @override
   List<amplify_core.ModelSchema> customTypeSchemas = [];
   static final ModelProvider _instance = ModelProvider();
@@ -45,6 +50,10 @@ class ModelProvider implements amplify_core.ModelProviderInterface {
     switch(modelName) {
       case "Apartment":
         return Apartment.classType;
+      case "AuditLog":
+        return AuditLog.classType;
+      case "BuildingSettings":
+        return BuildingSettings.classType;
       case "Package":
         return Package.classType;
       case "User":

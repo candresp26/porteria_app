@@ -18,13 +18,13 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
-
-    defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+defaultConfig {
+        // ... (otras líneas)
         applicationId = "com.example.porteria_app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        
+        // 👇 CAMBIA ESTA LÍNEA (Borra "flutter.minSdkVersion" y pon 21)
+        minSdk = flutter.minSdkVersion 
+        
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -29,12 +29,17 @@ class User extends amplify_core.Model {
   static const classType = const _UserModelType();
   final String id;
   final String? _username;
-  final String? _password;
   final bool? _isFirstLogin;
   final Role? _role;
   final String? _name;
+  final bool? _isActive;
+  final String? _email;
+  final String? _tower;
+  final String? _unit;
+  final bool? _isDevice;
   final Apartment? _apartment;
   final List<Package>? _packages;
+  final String? _pinCode;
   final amplify_core.TemporalDateTime? _createdAt;
   final amplify_core.TemporalDateTime? _updatedAt;
 
@@ -54,19 +59,6 @@ class User extends amplify_core.Model {
   String get username {
     try {
       return _username!;
-    } catch(e) {
-      throw amplify_core.AmplifyCodeGenModelException(
-          amplify_core.AmplifyExceptionMessages.codeGenRequiredFieldForceCastExceptionMessage,
-          recoverySuggestion:
-            amplify_core.AmplifyExceptionMessages.codeGenRequiredFieldForceCastRecoverySuggestion,
-          underlyingException: e.toString()
-          );
-    }
-  }
-  
-  String get password {
-    try {
-      return _password!;
     } catch(e) {
       throw amplify_core.AmplifyCodeGenModelException(
           amplify_core.AmplifyExceptionMessages.codeGenRequiredFieldForceCastExceptionMessage,
@@ -107,12 +99,45 @@ class User extends amplify_core.Model {
     return _name;
   }
   
+  bool get isActive {
+    try {
+      return _isActive!;
+    } catch(e) {
+      throw amplify_core.AmplifyCodeGenModelException(
+          amplify_core.AmplifyExceptionMessages.codeGenRequiredFieldForceCastExceptionMessage,
+          recoverySuggestion:
+            amplify_core.AmplifyExceptionMessages.codeGenRequiredFieldForceCastRecoverySuggestion,
+          underlyingException: e.toString()
+          );
+    }
+  }
+  
+  String? get email {
+    return _email;
+  }
+  
+  String? get tower {
+    return _tower;
+  }
+  
+  String? get unit {
+    return _unit;
+  }
+  
+  bool? get isDevice {
+    return _isDevice;
+  }
+  
   Apartment? get apartment {
     return _apartment;
   }
   
   List<Package>? get packages {
     return _packages;
+  }
+  
+  String? get pinCode {
+    return _pinCode;
   }
   
   amplify_core.TemporalDateTime? get createdAt {
@@ -123,18 +148,23 @@ class User extends amplify_core.Model {
     return _updatedAt;
   }
   
-  const User._internal({required this.id, required username, required password, required isFirstLogin, required role, name, apartment, packages, createdAt, updatedAt}): _username = username, _password = password, _isFirstLogin = isFirstLogin, _role = role, _name = name, _apartment = apartment, _packages = packages, _createdAt = createdAt, _updatedAt = updatedAt;
+  const User._internal({required this.id, required username, required isFirstLogin, required role, name, required isActive, email, tower, unit, isDevice, apartment, packages, pinCode, createdAt, updatedAt}): _username = username, _isFirstLogin = isFirstLogin, _role = role, _name = name, _isActive = isActive, _email = email, _tower = tower, _unit = unit, _isDevice = isDevice, _apartment = apartment, _packages = packages, _pinCode = pinCode, _createdAt = createdAt, _updatedAt = updatedAt;
   
-  factory User({String? id, required String username, required String password, required bool isFirstLogin, required Role role, String? name, Apartment? apartment, List<Package>? packages}) {
+  factory User({String? id, required String username, required bool isFirstLogin, required Role role, String? name, required bool isActive, String? email, String? tower, String? unit, bool? isDevice, Apartment? apartment, List<Package>? packages, String? pinCode}) {
     return User._internal(
       id: id == null ? amplify_core.UUID.getUUID() : id,
       username: username,
-      password: password,
       isFirstLogin: isFirstLogin,
       role: role,
       name: name,
+      isActive: isActive,
+      email: email,
+      tower: tower,
+      unit: unit,
+      isDevice: isDevice,
       apartment: apartment,
-      packages: packages != null ? List<Package>.unmodifiable(packages) : packages);
+      packages: packages != null ? List<Package>.unmodifiable(packages) : packages,
+      pinCode: pinCode);
   }
   
   bool equals(Object other) {
@@ -147,12 +177,17 @@ class User extends amplify_core.Model {
     return other is User &&
       id == other.id &&
       _username == other._username &&
-      _password == other._password &&
       _isFirstLogin == other._isFirstLogin &&
       _role == other._role &&
       _name == other._name &&
+      _isActive == other._isActive &&
+      _email == other._email &&
+      _tower == other._tower &&
+      _unit == other._unit &&
+      _isDevice == other._isDevice &&
       _apartment == other._apartment &&
-      DeepCollectionEquality().equals(_packages, other._packages);
+      DeepCollectionEquality().equals(_packages, other._packages) &&
+      _pinCode == other._pinCode;
   }
   
   @override
@@ -165,11 +200,16 @@ class User extends amplify_core.Model {
     buffer.write("User {");
     buffer.write("id=" + "$id" + ", ");
     buffer.write("username=" + "$_username" + ", ");
-    buffer.write("password=" + "$_password" + ", ");
     buffer.write("isFirstLogin=" + (_isFirstLogin != null ? _isFirstLogin!.toString() : "null") + ", ");
     buffer.write("role=" + (_role != null ? amplify_core.enumToString(_role)! : "null") + ", ");
     buffer.write("name=" + "$_name" + ", ");
+    buffer.write("isActive=" + (_isActive != null ? _isActive!.toString() : "null") + ", ");
+    buffer.write("email=" + "$_email" + ", ");
+    buffer.write("tower=" + "$_tower" + ", ");
+    buffer.write("unit=" + "$_unit" + ", ");
+    buffer.write("isDevice=" + (_isDevice != null ? _isDevice!.toString() : "null") + ", ");
     buffer.write("apartment=" + (_apartment != null ? _apartment!.toString() : "null") + ", ");
+    buffer.write("pinCode=" + "$_pinCode" + ", ");
     buffer.write("createdAt=" + (_createdAt != null ? _createdAt!.format() : "null") + ", ");
     buffer.write("updatedAt=" + (_updatedAt != null ? _updatedAt!.format() : "null"));
     buffer.write("}");
@@ -177,46 +217,65 @@ class User extends amplify_core.Model {
     return buffer.toString();
   }
   
-  User copyWith({String? username, String? password, bool? isFirstLogin, Role? role, String? name, Apartment? apartment, List<Package>? packages}) {
+  User copyWith({String? username, bool? isFirstLogin, Role? role, String? name, bool? isActive, String? email, String? tower, String? unit, bool? isDevice, Apartment? apartment, List<Package>? packages, String? pinCode}) {
     return User._internal(
       id: id,
       username: username ?? this.username,
-      password: password ?? this.password,
       isFirstLogin: isFirstLogin ?? this.isFirstLogin,
       role: role ?? this.role,
       name: name ?? this.name,
+      isActive: isActive ?? this.isActive,
+      email: email ?? this.email,
+      tower: tower ?? this.tower,
+      unit: unit ?? this.unit,
+      isDevice: isDevice ?? this.isDevice,
       apartment: apartment ?? this.apartment,
-      packages: packages ?? this.packages);
+      packages: packages ?? this.packages,
+      pinCode: pinCode ?? this.pinCode);
   }
   
   User copyWithModelFieldValues({
     ModelFieldValue<String>? username,
-    ModelFieldValue<String>? password,
     ModelFieldValue<bool>? isFirstLogin,
     ModelFieldValue<Role>? role,
     ModelFieldValue<String?>? name,
+    ModelFieldValue<bool>? isActive,
+    ModelFieldValue<String?>? email,
+    ModelFieldValue<String?>? tower,
+    ModelFieldValue<String?>? unit,
+    ModelFieldValue<bool?>? isDevice,
     ModelFieldValue<Apartment?>? apartment,
-    ModelFieldValue<List<Package>?>? packages
+    ModelFieldValue<List<Package>?>? packages,
+    ModelFieldValue<String?>? pinCode
   }) {
     return User._internal(
       id: id,
       username: username == null ? this.username : username.value,
-      password: password == null ? this.password : password.value,
       isFirstLogin: isFirstLogin == null ? this.isFirstLogin : isFirstLogin.value,
       role: role == null ? this.role : role.value,
       name: name == null ? this.name : name.value,
+      isActive: isActive == null ? this.isActive : isActive.value,
+      email: email == null ? this.email : email.value,
+      tower: tower == null ? this.tower : tower.value,
+      unit: unit == null ? this.unit : unit.value,
+      isDevice: isDevice == null ? this.isDevice : isDevice.value,
       apartment: apartment == null ? this.apartment : apartment.value,
-      packages: packages == null ? this.packages : packages.value
+      packages: packages == null ? this.packages : packages.value,
+      pinCode: pinCode == null ? this.pinCode : pinCode.value
     );
   }
   
   User.fromJson(Map<String, dynamic> json)  
     : id = json['id'],
       _username = json['username'],
-      _password = json['password'],
       _isFirstLogin = json['isFirstLogin'],
       _role = amplify_core.enumFromString<Role>(json['role'], Role.values),
       _name = json['name'],
+      _isActive = json['isActive'],
+      _email = json['email'],
+      _tower = json['tower'],
+      _unit = json['unit'],
+      _isDevice = json['isDevice'],
       _apartment = json['apartment'] != null
         ? json['apartment']['serializedData'] != null
           ? Apartment.fromJson(new Map<String, dynamic>.from(json['apartment']['serializedData']))
@@ -235,22 +294,28 @@ class User extends amplify_core.Model {
               .map((e) => Package.fromJson(new Map<String, dynamic>.from(e?['serializedData'])))
               .toList()
           : null),
+      _pinCode = json['pinCode'],
       _createdAt = json['createdAt'] != null ? amplify_core.TemporalDateTime.fromString(json['createdAt']) : null,
       _updatedAt = json['updatedAt'] != null ? amplify_core.TemporalDateTime.fromString(json['updatedAt']) : null;
   
   Map<String, dynamic> toJson() => {
-    'id': id, 'username': _username, 'password': _password, 'isFirstLogin': _isFirstLogin, 'role': amplify_core.enumToString(_role), 'name': _name, 'apartment': _apartment?.toJson(), 'packages': _packages?.map((Package? e) => e?.toJson()).toList(), 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
+    'id': id, 'username': _username, 'isFirstLogin': _isFirstLogin, 'role': amplify_core.enumToString(_role), 'name': _name, 'isActive': _isActive, 'email': _email, 'tower': _tower, 'unit': _unit, 'isDevice': _isDevice, 'apartment': _apartment?.toJson(), 'packages': _packages?.map((Package? e) => e?.toJson()).toList(), 'pinCode': _pinCode, 'createdAt': _createdAt?.format(), 'updatedAt': _updatedAt?.format()
   };
   
   Map<String, Object?> toMap() => {
     'id': id,
     'username': _username,
-    'password': _password,
     'isFirstLogin': _isFirstLogin,
     'role': _role,
     'name': _name,
+    'isActive': _isActive,
+    'email': _email,
+    'tower': _tower,
+    'unit': _unit,
+    'isDevice': _isDevice,
     'apartment': _apartment,
     'packages': _packages,
+    'pinCode': _pinCode,
     'createdAt': _createdAt,
     'updatedAt': _updatedAt
   };
@@ -258,16 +323,21 @@ class User extends amplify_core.Model {
   static final amplify_core.QueryModelIdentifier<UserModelIdentifier> MODEL_IDENTIFIER = amplify_core.QueryModelIdentifier<UserModelIdentifier>();
   static final ID = amplify_core.QueryField(fieldName: "id");
   static final USERNAME = amplify_core.QueryField(fieldName: "username");
-  static final PASSWORD = amplify_core.QueryField(fieldName: "password");
   static final ISFIRSTLOGIN = amplify_core.QueryField(fieldName: "isFirstLogin");
   static final ROLE = amplify_core.QueryField(fieldName: "role");
   static final NAME = amplify_core.QueryField(fieldName: "name");
+  static final ISACTIVE = amplify_core.QueryField(fieldName: "isActive");
+  static final EMAIL = amplify_core.QueryField(fieldName: "email");
+  static final TOWER = amplify_core.QueryField(fieldName: "tower");
+  static final UNIT = amplify_core.QueryField(fieldName: "unit");
+  static final ISDEVICE = amplify_core.QueryField(fieldName: "isDevice");
   static final APARTMENT = amplify_core.QueryField(
     fieldName: "apartment",
     fieldType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.model, ofModelName: 'Apartment'));
   static final PACKAGES = amplify_core.QueryField(
     fieldName: "packages",
     fieldType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.model, ofModelName: 'Package'));
+  static final PINCODE = amplify_core.QueryField(fieldName: "pinCode");
   static var schema = amplify_core.Model.defineSchema(define: (amplify_core.ModelSchemaDefinition modelSchemaDefinition) {
     modelSchemaDefinition.name = "User";
     modelSchemaDefinition.pluralName = "Users";
@@ -285,19 +355,16 @@ class User extends amplify_core.Model {
           amplify_core.ModelOperation.READ
         ]),
       amplify_core.AuthRule(
-        authStrategy: amplify_core.AuthStrategy.GROUPS,
-        groupClaim: "cognito:groups",
-        groups: [ "ADMIN", "GUARD" ],
-        provider: amplify_core.AuthRuleProvider.USERPOOLS,
+        authStrategy: amplify_core.AuthStrategy.PRIVATE,
         operations: const [
-          amplify_core.ModelOperation.READ
+          amplify_core.ModelOperation.READ,
+          amplify_core.ModelOperation.UPDATE
         ]),
       amplify_core.AuthRule(
         authStrategy: amplify_core.AuthStrategy.PUBLIC,
         operations: const [
           amplify_core.ModelOperation.CREATE,
-          amplify_core.ModelOperation.READ,
-          amplify_core.ModelOperation.UPDATE
+          amplify_core.ModelOperation.READ
         ])
     ];
     
@@ -310,12 +377,6 @@ class User extends amplify_core.Model {
     
     modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
       key: User.USERNAME,
-      isRequired: true,
-      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
-    ));
-    
-    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
-      key: User.PASSWORD,
       isRequired: true,
       ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
     ));
@@ -338,6 +399,36 @@ class User extends amplify_core.Model {
       ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
     ));
     
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: User.ISACTIVE,
+      isRequired: true,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.bool)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: User.EMAIL,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: User.TOWER,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: User.UNIT,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: User.ISDEVICE,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.bool)
+    ));
+    
     modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.belongsTo(
       key: User.APARTMENT,
       isRequired: false,
@@ -350,6 +441,12 @@ class User extends amplify_core.Model {
       isRequired: false,
       ofModelName: 'Package',
       associatedKey: Package.RECIPIENT
+    ));
+    
+    modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.field(
+      key: User.PINCODE,
+      isRequired: false,
+      ofType: amplify_core.ModelFieldType(amplify_core.ModelFieldTypeEnum.string)
     ));
     
     modelSchemaDefinition.addField(amplify_core.ModelFieldDefinition.nonQueryField(
